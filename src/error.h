@@ -17,19 +17,23 @@
 typedef int8_t status;
 
 #define  Ok    			1
-#define  Warning 		0
+#define  Bad 				0
 #define  Fatal     -1
 
-#define warning(arg, ...)	{													\
-	fprintf(stderr, "warning:" arg "\n%s 	%s : %d\n", 					\
-	##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__); \
-	return Warning;																		\
+#define alert(arg, ...)	{								\
+	fprintf(stderr, "alert:" arg "\n");		\
 }
 
-#define fatal(arg, ...) { 													\
-	fprintf(stderr, "fatal:" arg "\n%s 	%s : %d\n",						\
-	##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__); \
-	return Fatal;																			\
+#define warning(arg, ...)	{														\
+	fprintf(stderr, "warning:" arg "\n%s 	%s : %d\n", 	\
+	##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__); 	\
+	return Bad;																					\
+}
+
+#define fatal(arg, ...) { 														\
+	fprintf(stderr, "fatal:" arg "\n%s 	%s : %d\n",			\
+	##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__); 	\
+	return Fatal;																				\
 }
 
 #endif /* _ERROR_H_ */

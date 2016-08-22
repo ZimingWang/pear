@@ -12,6 +12,7 @@
 
 #include "util.h"
 #include "error.h"
+#include "db.h"
 
 #define  BUFFER_SIZE  8192
 
@@ -32,6 +33,7 @@ typedef struct
 
 typedef struct
 {
+	DB 			 *db;
 	Buffer 		buffer;
 	Token			token;
 	int 			fd;

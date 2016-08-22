@@ -1,7 +1,7 @@
 CC = gcc
-CFLAGS = -std=c11 -Wall -O3
+CFLAGS = -std=c99 -Wall -O3
 
-OBJ = table.o parser.o
+OBJ = util.o btree.o table.o db.o parser.o
 
 pear:$(OBJ) pear.c
 	$(CC) $(CFLAGS) -o pear $(OBJ) pear.c

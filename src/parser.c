@@ -40,6 +40,7 @@ static status _init_token(Token *token)
 
 status init_parser()
 {
+	parser.db = NULL;
 	if (_init_buffer(&parser.buffer) == Fatal) return Fatal;
 	if (_init_token(&parser.token) == Fatal) return Fatal;
 	parser.fd 	= -1;
@@ -68,7 +69,7 @@ void free_parser()
 static status _next_buffer()
 {
 	parser.processed += parser.buffer.len;
-	parser.buffer.len = pread(parser.fd, parser.buffer.mem, BUFFER_SIZE, parser.processed);
+	parser.buffer.len = pread64(parser.fd, parser.buffer.mem, BUFFER_SIZE, parser.processed);
 	if (parser.buffer.len > 0) {
 		parser.buffer.ptr = parser.buffer.mem;
 		char *ptr = (char *)(parser.buffer.mem + parser.buffer.len - 1);
@@ -79,7 +80,7 @@ static status _next_buffer()
 		}
 		return Ok;
 	} else if (!parser.buffer.len) {
-		return Warning;
+		return Bad;
 	} else {
 		fatal("pear文件读取失败 :(");
 	}
@@ -270,7 +271,8 @@ done:
 	parser.buffer.ptr = ++ptr;
 	return Ok;
 }
-/*
+
+#ifdef DEBUG
 static void _print_token(Token *token)
 {
 	if (!token->count) {
@@ -282,21 +284,38 @@ static void _print_token(Token *token)
 		}
 	}
 }
-*/
+#endif
+
 status parse(const char *file)
 {
 	if ((parser.fd = open(file, O_RDONLY)) < 0) warning("无法打开 %s :(", file);
 	status s;
 	for (;;) {
-		if ((s = _parse_line()) != Ok) return s;
+		if ((s = _parse_line()) != Ok) {
+			close(parser.fd);
+			return s;
+		}
 		switch(parser.token.op) {
 			case PUT:
+				if (!parser.db) { alert("未选定或创建数据库 :("); break; }
+				// put(parser.db, parser.token.ele, parser.token.len, parser.token.count);
 			case DROP:
 			case GET:
 			case OPEN:
+				if (!parser.db)
+					parser.db = newDB((const char *)parser.token.ele[0]);
+				else
+					warning("存在打开的数据库 %s :(", parser.db->name);
+				break;
 			case SHUT:
 			case REMOVE:
+				warning("not implemented :(");
+				break;
 			case NEW:
+				if (parser.db)
+					create_table(parser.db, parser.token.ele, parser.token.len, parser.token.count);
+				else
+					alert("未选定或创建数据库 :(");
 				break;
 		}
 	}

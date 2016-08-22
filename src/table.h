@@ -29,9 +29,11 @@ typedef struct
 	uint8_t		 size;
 }Table;
 
-status init_table(Table *table);
+Table* newTable();
 void 	 free_table(Table *table);
-status make_table(Table *table, const uint8_t **name, const uint16_t *len, const uint8_t count);
+status make_table(Table *table, void **name, const uint16_t *len, const uint8_t count);
 bool	 verify_attributes(const Table *table, const uint16_t *len, const uint8_t count);
+status write_table(const Table *table, int *fd);
+void 	 get_table_info(const Table *table, uint8_t *type, uint8_t *size, uint16_t *total);
 
 #endif /* _TABLE_H_ */
