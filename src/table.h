@@ -13,27 +13,27 @@
 #include "util.h"
 #include "error.h"
 
-#define  MAX_ATTRIBUTE_SIZE  8
-#define  ATTRIBUTE_NAME_LEN  32
-#define	 MAX_STR_LEN				 4096
+#define  MAX_ATTRIBUTE  8
 
 typedef struct
 {
-	uint8_t 	name[ATTRIBUTE_NAME_LEN];
-	uint16_t 	len;
+	char 			name[32];
+	uint16_t	len;
 }Attribute;
 
 typedef struct
 {
-	Attribute *attribute;
-	uint8_t		 size;
+	Attribute  *attribute;
+	uint8_t		  attri_num;
 }Table;
 
 Table* newTable();
 void 	 free_table(Table *table);
-status make_table(Table *table, void **name, const uint16_t *len, const uint8_t count);
-bool	 verify_attributes(const Table *table, const uint16_t *len, const uint8_t count);
+status make_table(Table *table, const void **name, const uint16_t *len, const uint8_t count);
+bool	 verify_attributes(	const Table *table, const void **val, const uint16_t *len,
+													const uint8_t count, void *buf);
+bool 	 verify_key(const Table *table, const uint16_t len);
 status write_table(const Table *table, int *fd);
-void 	 get_table_info(const Table *table, uint8_t *type, uint8_t *size, uint16_t *total);
+void 	 get_table_info(const Table *table, uint8_t *type, uint8_t *len, uint16_t *total);
 
 #endif /* _TABLE_H_ */

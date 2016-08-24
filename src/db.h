@@ -21,17 +21,13 @@ typedef struct
 	BTree	  	*btree;
 	uint32_t   tuple;
 	int 		   table_fd;
-	int 		  *data_fd;
-	uint32_t   data_file_num;
-	int 		  *index_fd;
-	uint32_t   index_file_num;
 	char 	 	 	 dir[64];
 }DB;
 
 DB* newDB(const char *name);
-status create_table(DB *db, void **name, const uint16_t *len, const uint8_t count);
-status put(DB *db, void **val, const uint16_t *len, const uint8_t count);
-status drop(DB *db, void *key);
-status get(DB *db, void *key);
+status create_table(DB *db, const void **name, const uint16_t *len, const uint8_t count);
+status put(DB *db, const void **val, const uint16_t *len, const uint8_t count);
+status drop(DB *db, const void *key, const uint16_t len);
+status get(const DB *db, const void *key, const uint16_t len);
 
 #endif /* _DB_H_ */

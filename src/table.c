@@ -30,43 +30,21 @@ Table* newTable()
 	if (!table)
 		warning("表初始化失败 :(");
 
-	table->attribute = calloc(MAX_ATTRIBUTE_SIZE, sizeof(Attribute));
+	table->attribute = (Attribute *)calloc(MAX_ATTRIBUTE, sizeof(Attribute));
 	if (!table->attribute) {
 		free_table(table);
 		warning("表初始化失败 :(");
 	}
 
-	table->size = 0;
 	return table;
 }
 
-static status _append_attribute(Table *table, const char *name, const uint16_t len)
-{
-	if (table->size == MAX_ATTRIBUTE_SIZE)
-		warning("表属性数量到达允许数量 %d", MAX_ATTRIBUTE_SIZE);
-
-	if (strlen((char *)name) >= ATTRIBUTE_NAME_LEN)
-		warning("表属性名称过长 :(");
-
-	strcpy((char *)table->attribute[table->size].name, name);
-
-	if (len) {
-		if (len >= MAX_STR_LEN)
-			warning("字符串属性超过允许长度 %d", MAX_STR_LEN);
-		table->attribute[table->size].len = len;
-	} else {
-		table->attribute[table->size].len = 0;
-	}
-
-	++table->size;
-	return Ok;
-}
-
-status make_table(Table *table, void **name, const uint16_t *len, const uint8_t count)
+status make_table(Table *table, const void **name, const uint16_t *len, const uint8_t count)
 {
 	for (uint8_t i = 0; i != count; ++i) {
-		if (_append_attribute(table, (const char *)name[i], len[i]) != Ok)
-			warning("表建立失败 :(");
+		strcpy(table->attribute[i].name, (char *)name[i]);
+		table->attribute[i].len = len[i];
+		++table->attri_num;
 	}
 	return Ok;
 }
@@ -77,9 +55,9 @@ status write_table(const Table *table, int *fd)
 		warning("表文件创建失败 :(");
 	if ((*fd = open("table.pear", O_WRONLY)) < 0)
 		warning("表文件打开失败 :(");
-	char buf[1024] = {0};
-	for (uint8_t i = 0; i != table->size; ++i) {
-		strcat(buf, (char *)table->attribute[i].name);
+	char buf[512] = {0};
+	for (uint8_t i = 0; i != table->attri_num; ++i) {
+		strcat(buf, table->attribute[i].name);
 		if (table->attribute[i].len > 0) {
 			strcat(buf, " STR ");
 			char c[8];
@@ -95,22 +73,32 @@ status write_table(const Table *table, int *fd)
 	return Ok;
 }
 
-void get_table_info(const Table *table, uint8_t *type, uint8_t *size, uint16_t *total)
+void get_table_info(const Table *table, uint8_t *type, uint8_t *len, uint16_t *total)
 {
-	assert(table->size > 0 && table->attribute[0].len > 0);
+	assert(table->attri_num > 0 && table->attribute[0].len > 0);
 	*type = STR;
-	*size = table->attribute[0].len;
+	*len = table->attribute[0].len;
 	*total = 0;
-	for (uint8_t i = 0; i != table->size; ++i)
-		*total += (table->attribute[i].len > 0) ? table->attribute[i].len : 4;
+	for (uint8_t i = 0; i != table->attri_num; ++i)
+		*total += table->attribute[i].len;
 }
 
-
-bool verify_attributes(const Table *table, const uint16_t *len, const uint8_t count)
+bool verify_attributes(const Table *table, const void **val, const uint16_t *len,
+	const uint8_t count, void *buf)
 {
-	if (table->size != count) return false;
-	for (uint8_t i = 0; i != count; ++i)
+	if (table->attri_num != count) return false;
+	uint16_t offset = 0;
+	for (uint8_t i = 0; i != count; ++i) {
 		if (len[i] > table->attribute[i].len)
 			return false;
+		memcpy(buf + offset, val[i], len[i]);
+		offset += table->attribute[i].len;
+	}
 	return true;
+}
+
+bool verify_key(const Table *table, const uint16_t len)
+{
+	assert(table->attri_num);
+	return table->attribute[0].len > len;
 }

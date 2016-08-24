@@ -18,10 +18,10 @@
 
 typedef struct
 {
-	uint8_t 	  op;
-	void  	 **ele;
-	uint16_t  *len;
-	uint8_t   count;
+	uint8_t 	   	op;
+	const void  **ele;
+	uint16_t   	 *len;
+	uint8_t   	  count;
 }Token;
 
 typedef struct

@@ -1,7 +1,7 @@
 /**
  *    > Author:   UncP
  *    > Mail:     770778010@qq.com
- *    > Github:	  https://www.github.com/UncP
+ *    > Github:	  https://www.github.com/UncP/pear
  *    > Description:
  *
  *    > Created Time: 2016-08-21 19:33:03
@@ -29,12 +29,10 @@ DB* newDB(const char *name)
 		free(db);
 		warning("无法获取数据库目录 :(");
 	}
-	// puts(db->name);
-	// puts(db->dir);
 	return db;
 }
 
-status create_table(DB *db, void **name, const uint16_t *len, const uint8_t count)
+status create_table(DB *db, const void **name, const uint16_t *len, const uint8_t count)
 {
 	if (db->table) warning("数据库表已存在 :(");
 	db->table = newTable();
@@ -57,32 +55,60 @@ status create_table(DB *db, void **name, const uint16_t *len, const uint8_t coun
 	db->btree = newBTree();
 	if (!db->btree) return Bad;
 
-	uint8_t type, size;
+	uint8_t type, key_len;
 	uint16_t total;
-	get_table_info(db->table, &type, &size, &total);
+	get_table_info(db->table, &type, &key_len, &total);
 
 	int8_t (*compare)(const void *, const void *, const uint32_t);
 
 	get_comparator(type, &compare);
 
-	if (init_btree(db->btree, size, total, compare) != Ok) {
+	if (init_btree(db->btree, key_len, total, compare) != Ok) {
 		free_btree(db->btree);
 		db->btree = NULL;
 		free_table(db->table);
 		db->table = NULL;
 		return Bad;
 	}
-
 	return Ok;
 }
 
-status put(DB *db, void **val, const uint16_t *len, const uint8_t count)
+status put(DB *db, const void **val, const uint16_t *len, const uint8_t count)
 {
 	if (!db->table) warning("数据库表不存在 :(");
-	if (!verify_attributes(db->table, len, count)) {
+	char buf[db->btree->data_len];
+	if (!verify_attributes(db->table, val, len, count, buf)) {
 		alert("插入数据与表属性不匹配 :(");
 		return Bad;
 	}
-	// insert_data(db->btree, val);
+	if (insert_data(db->btree, buf))
+		++db->tuple;
+	return Ok;
+}
+
+status drop(DB *db, const void *key, const uint16_t len)
+{
+	if (!db->table) warning("数据库表不存在 :(");
+	if (!verify_key(db->table, len)) {
+		alert("关键值属性错误 :(");
+		return Bad;
+	}
+	char buf[len];
+	memcpy(buf, key, len);
+	if (delete_data(db->btree, buf))
+		--db->tuple;
+	return Ok;
+}
+
+status get(const DB *db, const void *key, const uint16_t len)
+{
+	if (!db->table) warning("数据库表不存在 :(");
+	if (!verify_key(db->table, len)) {
+		alert("关键值属性错误 :(");
+		return Bad;
+	}
+	char buf[len];
+	memcpy(buf, key, len);
+	// lookup_data(db->btree, key);
 	return Ok;
 }

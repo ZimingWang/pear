@@ -31,9 +31,9 @@ static status _init_buffer(Buffer *buffer)
 
 static status _init_token(Token *token)
 {
-	token->ele = calloc(MAX_ATTRIBUTE_SIZE, sizeof(uint8_t *));
+	token->ele = calloc(MAX_ATTRIBUTE, sizeof(uint8_t *));
 	if (!token->ele) fatal("Token初始化失败 :(");
-	token->len = calloc(MAX_ATTRIBUTE_SIZE, sizeof(uint16_t));
+	token->len = calloc(MAX_ATTRIBUTE, sizeof(uint16_t));
 	if (!token->len) fatal("Token初始化失败 :(");
 	return Ok;
 }
@@ -73,7 +73,7 @@ static status _next_buffer()
 	if (parser.buffer.len > 0) {
 		parser.buffer.ptr = parser.buffer.mem;
 		char *ptr = (char *)(parser.buffer.mem + parser.buffer.len - 1);
-		memset(parser.buffer.mem + parser.buffer.len, 0, BUFFER_SIZE - parser.buffer.len);
+		memset(parser.buffer.mem + parser.buffer.len, 0, 8);
 		for (; *ptr != '\n' && *ptr != '\0';) {
 			*ptr-- = '\0';
 			--parser.buffer.len;
@@ -286,21 +286,43 @@ static void _print_token(Token *token)
 }
 #endif
 
+static void _reset_buffer(Buffer *buffer)
+{
+	memset(buffer->mem, 0, BUFFER_SIZE);
+}
+
+static void _reset_parser()
+{
+	parser.processed = 0;
+	parser.line = 0;
+	_reset_buffer(&parser.buffer);
+}
+
 status parse(const char *file)
 {
 	if ((parser.fd = open(file, O_RDONLY)) < 0) warning("无法打开 %s :(", file);
+	_reset_parser();
 	status s;
 	for (;;) {
 		if ((s = _parse_line()) != Ok) {
 			close(parser.fd);
+			if (parser.db) printf("%d\n", parser.db->tuple);
 			return s;
 		}
 		switch(parser.token.op) {
 			case PUT:
-				if (!parser.db) { alert("未选定或创建数据库 :("); break; }
-				// put(parser.db, parser.token.ele, parser.token.len, parser.token.count);
+				if (!parser.db)
+					alert("未选定或创建数据库 :(");
+				else
+					put(parser.db, parser.token.ele, parser.token.len, parser.token.count);
+				break;
 			case DROP:
 			case GET:
+				if (!parser.db)
+					alert("未选定或创建数据库 :(");
+				else
+					get(parser.db, parser.token.ele[0], parser.token.len[0]);
+				break;
 			case OPEN:
 				if (!parser.db)
 					parser.db = newDB((const char *)parser.token.ele[0]);

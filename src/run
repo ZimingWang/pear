@@ -1,3 +1,14 @@
 #! /bin/sh
 rm -rf ../my
-make && ./pear
+make
+
+beg=$(date +%s.%N)
+./pear 21
+end=$(date +%s.%N)
+
+res=`echo "$end-$beg" | bc`
+gprof pear ../my/gmon.out -p > pinfo
+sed -n -e 4,19p -s pinfo
+rm ../my/gmon.out pinfo
+
+echo $res

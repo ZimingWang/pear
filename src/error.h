@@ -20,9 +20,7 @@ typedef int8_t status;
 #define  Bad 				0
 #define  Fatal     -1
 
-#define alert(arg, ...)	{								\
-	fprintf(stderr, "alert:" arg "\n");		\
-}
+#define alert(arg, ...)	fprintf(stderr, "alert:" arg "\n", ##__VA_ARGS__)
 
 #define warning(arg, ...)	{														\
 	fprintf(stderr, "warning:" arg "\n%s 	%s : %d\n", 	\

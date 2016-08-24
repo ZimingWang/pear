@@ -2,6 +2,9 @@
 [中文版 README](./README.md)
 
 ###This is an upgrade of [Up Database](http://www.github.com/UncP/Up_Database)
+
+###Current Version 0.0.9
+
 ####Goals
 - Faster than Up Database at million level data insertion and deletion
 - Module
@@ -9,6 +12,15 @@
 
 ####Features
 - More simplified syntax [pear syntax](./pear_syntax)
+
+#####Test Data 1000000 tuples, 80 bytes/tuple
+#####Consist of
+* key    16  bytes
+* value  64  bytes (1 key 1 value)
+
+###Version Information
+* Version 0.0.9
+	- Insertion speed			``` 328000 tuples/second ```
 
 
 ###TODO
