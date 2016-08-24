@@ -13,12 +13,13 @@
 ####Features
 - More simplified syntax [pear syntax](./pear_syntax)
 
-#####Test Data 1000000 tuples, 80 bytes/tuple
-#####Consist of
-* key    16  bytes
-* value  64  bytes (1 key 1 value)
 
 ###Version Information
+#####Test Data 1000000 tuples, 80 bytes/tuple
+#####Consist of
+	* key    16  bytes
+	* value  64  bytes (1 key 1 value)
+
 * Version 0.0.9
 	- Insertion speed			``` 328000 tuples/second ```
 
