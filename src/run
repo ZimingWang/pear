@@ -1,9 +1,18 @@
 #! /bin/sh
 rm -rf ../my
+
+put=100
+drop=100
+
+beg1=1
+end1=`echo "$beg1+$put" | bc`
+beg2=101
+end2=`echo "$beg2+$drop" | bc`
+
 make
 
 beg=$(date +%s.%N)
-./pear 21
+./pear $beg1 $end1 $beg2 $end2
 end=$(date +%s.%N)
 
 res=`echo "$end-$beg" | bc`

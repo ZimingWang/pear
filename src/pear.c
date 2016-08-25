@@ -21,10 +21,10 @@ status init_test(const char *dir)
 	return parse(file);
 }
 
-void test(const char *dir, const int end)
+void test(const char *dir, int beg, int end)
 {
 	char file[64], num[8];
-	for (int i = 1; i < end; ++i) {
+	for (int i = beg; i < end; ++i) {
 		memset(file, 0, 64);
 		strcpy(file, dir);
 		sprintf(num, "%d", i);
@@ -36,10 +36,13 @@ void test(const char *dir, const int end)
 
 int main(int argc, char **argv)
 {
-	if (argc < 2)
+	if (argc < 5)
 		warning("缺少参数 :(");
 
-	int end = atoi(argv[1]);
+	int beg1 = atoi(argv[1]);
+	int end1 = atoi(argv[2]);
+	int beg2 = atoi(argv[3]);
+	int end2 = atoi(argv[4]);
 
 	if (chdir(".."))
 		warning("目录转换失败 :(");
@@ -52,8 +55,10 @@ int main(int argc, char **argv)
 
 	init_parser();
 
-	if (init_test(dir) != Fatal)
-		test(dir, end);
+	if (init_test(dir) != Fatal) {
+		test(dir, beg1, end1);
+		test(dir, beg2, end2);
+	}
 
 	free_parser();
 

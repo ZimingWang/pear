@@ -16,6 +16,7 @@
 #define PTR(ptr, index, len) (((void *)ptr) + (((uint32_t)index) * len))
 #define LEN(beg, end, len) 	 ((((uint32_t)end) - beg) * len)
 #define KEY(leaf)						 (*((uint8_t *)(leaf->page->data + 0)))
+#define OFF(leaf, index)     (*((uint8_t *)(leaf->page->data + 1 + index)))
 
 BTree* newBTree()
 {
@@ -50,6 +51,11 @@ static BNode* newBNode(BTree *btree, uint8_t tag)
 	bnode->tag 	 = tag;
 
 	return bnode;
+}
+
+void free_bnode(BNode *bnode)
+{
+	free(bnode);
 }
 
 #ifdef DEBUG
@@ -93,14 +99,18 @@ status init_btree(BTree 	*btree, uint16_t key_len, uint16_t total,
 	return Ok;
 }
 
-void free_btree(BTree *btree)
+status free_btree(BTree *btree)
 {
+	if (free_pager(&btree->pager) != Ok)
+		return Bad;
 	free(btree);
+	return Ok;
 }
 
 static uint8_t _get_descend_index(const BNode *curr, const void *key, const uint8_t len,
 	int8_t (*compare)(const void *, const void *, const uint32_t))
 {
+
 	uint8_t low = 0, high = (uint8_t)curr->kcount, mid = (low + high) >> 1;
 	while (low != high) {
 		int8_t flag = compare(PTR(curr->key, mid, len), key, len);
@@ -119,6 +129,7 @@ static uint8_t _get_descend_index(const BNode *curr, const void *key, const uint
 
 static BNode* _find_leaf(BTree *btree, const void *key)
 {
+
 	btree->curr_depth = 0;
 	BNode *curr = btree->root;
 	for (; curr->tag != LEAF;) {
@@ -128,7 +139,6 @@ static BNode* _find_leaf(BTree *btree, const void *key)
 		++btree->curr_depth;
 		curr = curr->child[index];
 	}
-
 	return curr;
 }
 
@@ -154,14 +164,6 @@ static uint8_t _get_index(const void *data, const uint16_t data_size, const uint
 	else				return 0xFF;
 }
 
-static void _insert_child(BNode *bnode, const uint8_t pos, BNode *child)
-{
-	if (bnode->ncount > pos)
-		memmove(PTR(bnode->child, pos+1, 8), PTR(bnode->child, pos, 8), LEN(pos, bnode->ncount, 8));
-	bnode->child[pos] = child;
-	++bnode->ncount;
-}
-
 static void _insert_key(BNode *bnode, const uint8_t pos, const void *key, const uint8_t len)
 {
 	if (bnode->kcount > pos)
@@ -169,6 +171,15 @@ static void _insert_key(BNode *bnode, const uint8_t pos, const void *key, const 
 						LEN(pos, bnode->kcount, len));
 	memcpy(PTR(bnode->key, pos, len), key, len);
 	++bnode->kcount;
+}
+
+static void _insert_child(BNode *bnode, const uint8_t pos, BNode *child)
+{
+	if (bnode->ncount > pos)
+		memmove(PTR(bnode->child, pos+1, PTR_SIZE), PTR(bnode->child, pos, PTR_SIZE),
+						LEN(pos, bnode->ncount, PTR_SIZE));
+	bnode->child[pos] = child;
+	++bnode->ncount;
 }
 
 static void _insert_pair(BNode *bnode, const uint8_t pos,
@@ -183,14 +194,14 @@ static void _part_key(BNode *dst, BNode *src, const uint8_t beg, const uint8_t e
 {
 	memcpy(PTR(dst->key, 0, len), PTR(src->key, beg, len), LEN(beg, end, len));
 	dst->kcount = end - beg;
-	src->kcount = (uint8_t)beg;
+	src->kcount = beg - 1;
 }
 
 static void _part_child(BNode *dst, BNode *src, const uint8_t beg, const uint8_t end)
 {
-	memcpy(PTR(dst->child, 0, 8), PTR(src->child, beg, 8), LEN(beg, end, 8));
+	memcpy(PTR(dst->child, 0, PTR_SIZE), PTR(src->child, beg, PTR_SIZE), LEN(beg, end, PTR_SIZE));
 	dst->ncount = end - beg;
-	src->ncount  = (uint8_t)beg;
+	src->ncount = (uint8_t)beg;
 }
 
 static void _part_half(BNode *dst, BNode *src, const uint8_t beg, const uint8_t end,
@@ -262,10 +273,11 @@ status insert_data(BTree *btree, const void *val)
 				split_page(new->page, leaf->page, btree->min_key, btree->n, btree->data_len);
 				pos -= btree->min_key;
 				if (!pos) memcpy(key, val, btree->key_len);
-				else      memcpy(key, new->page + btree->n, btree->key_len);
+				else      memcpy(key, new->page->data + btree->n, btree->key_len);
 				insert_to_page(new->page, btree->max_key, pos, val, btree->data_len);
 			} else {
 				split_page(new->page, leaf->page, btree->min_key-1, btree->n, btree->data_len);
+				memcpy(key, new->page->data + btree->n, btree->key_len);
 				insert_to_page(leaf->page, btree->max_key, pos, val, btree->data_len);
 			}
 			++new->page->age;
@@ -279,54 +291,164 @@ status insert_data(BTree *btree, const void *val)
 	return Ok;
 }
 
-static status _merge_leaf(BTree *btree, const uint8_t index,
-	BNode *left, char *key, BNode *right)
+static status _merge_or_redis_leaf(BTree *btree, BNode *parent, const uint8_t index,
+	char *key, bool *merge)
 {
-
-}
-
-static void _get_pair(BTree *btree, BNode *parent, const uint8_t index)
-{
-	char key[btree->key_len];
+	BNode *left, *right;
 	if (index) {
-		memcpy(key, PTR(parent->key, index-1, len), len);
-		left  = bnode->child[index-1];
-		right = bnode->child[index];
+		left  = parent->child[index-1];
+		right = parent->child[index];
+		right->page->status = WRITE;
+		if (left->index != left->page->index) left->page = get_page(&btree->pager, left->index);
+		else ++left->page->age;
+		right->page->status = false;
 	} else {
-		memcpy(key, PTR(parent->key, 0, len), len);
-		left  = bnode->child[0];
-		right = bnode->child[1];
+		left  = parent->child[0];
+		right = parent->child[1];
+		left->page->status = WRITE;
+		if (right->index != right->page->index) right->page = get_page(&btree->pager, right->index);
+		else ++right->page->age;
+		left->page->status = false;
 	}
+	*merge = (KEY(left) + KEY(right)) < btree->n;
+	if (*merge) {
+		merge_page(left->page, right->page, btree->n, btree->data_len);
+		left->child = right->child;
+	} else {
+		if (index)
+			move_last_to_right(left->page, right->page, btree->n, btree->data_len);
+		else
+			move_first_to_left(left->page, right->page, btree->n, btree->data_len);
+		memcpy(	key, PTR(right->page->data + btree->n, OFF(right, 0), btree->data_len),
+						btree->key_len);
+	}
+	return Ok;
 }
 
-static status _delete_fixup(BTree *btree)
+static void _delete_key(BNode *bnode, const uint8_t beg, const uint8_t key_len)
+{
+	--bnode->kcount;
+	if (bnode->kcount > beg)
+		memmove(PTR(bnode->key, beg, key_len), PTR(bnode->key, beg+1, key_len),
+						LEN(beg, bnode->kcount, key_len));
+}
+
+static void _delete_child(BNode *bnode, const uint8_t beg)
+{
+	--bnode->ncount;
+	if (bnode->ncount > beg)
+		memmove(PTR(bnode->child, beg, PTR_SIZE), PTR(bnode->child, beg+1, PTR_SIZE),
+						LEN(beg, bnode->ncount, PTR_SIZE));
+}
+
+static void _delete_pair(BNode *bnode, const uint8_t index, const uint8_t key_len)
+{
+	_delete_key(bnode, index, key_len);
+
+	free_bnode(bnode->child[index+1]);
+	_delete_child(bnode, index+1);
+}
+
+static void _merge_key(BNode *left, BNode *right, const uint8_t key_len)
+{
+	memcpy(	PTR(left->key, left->kcount, key_len), PTR(right->key, 0, key_len),
+					LEN(0, right->kcount, key_len));
+	left->kcount += right->kcount;
+}
+
+static void _merge_child(BNode *left, BNode *right)
+{
+	memcpy(	PTR(left->child, left->ncount, PTR_SIZE), PTR(right->child, 0, PTR_SIZE),
+					LEN(0, right->ncount, PTR_SIZE));
+	left->ncount += right->ncount;
+}
+
+static void _merge_half(BNode *left, const char *key, BNode *right, const uint8_t key_len)
+{
+	memcpy(PTR(left->key, left->kcount, key_len), key, key_len);
+	++left->kcount;
+
+	_merge_key(left, right, key_len);
+	_merge_child(left, right);
+}
+
+static status _merge_or_redis_node(BTree *btree, BNode *parent, const uint8_t index,
+	char *key, bool *merge)
+{
+	BNode *left, *right;
+	char mid[btree->key_len];
+	if (index) {
+		memcpy(mid, PTR(parent->key, index-1, btree->key_len), btree->key_len);
+		left  = parent->child[index-1];
+		right = parent->child[index];
+	} else {
+		memcpy(mid, PTR(parent->key, 0, btree->key_len), btree->key_len);
+		left  = parent->child[0];
+		right = parent->child[1];
+	}
+	*merge = (left->ncount + right->ncount) < btree->max_node;
+	if (*merge) {
+		_merge_half(left, mid, right, btree->key_len);
+	} else {
+		if (index) {
+			memcpy(key, PTR(left->key, --left->kcount, btree->key_len), btree->key_len);
+			_insert_key(right, 0, mid, btree->key_len);
+			_insert_child(right, 0, left->child[--left->ncount]);
+		} else {
+			memcpy(key, PTR(right->key, 0, btree->key_len), btree->key_len);
+			_insert_pair(left, left->kcount, right->child[0], mid, btree->key_len);
+			_delete_key(right, 0, btree->key_len);
+			_delete_child(right, 0);
+		}
+	}
+	return Ok;
+}
+
+static status _delete_fixup(BTree *btree, BNode *leaf)
 {
 	BNode *bnode;
 	uint8_t index;
-	if (bnode != btree->root) {
+	char key[btree->key_len];
+	bool merge;
+	if (leaf != btree->root) {
 		bnode = btree->track[--btree->curr_depth].node;
 		index = btree->track[btree->curr_depth].index;
-		_merge_or_redis_leaf(btree, bnode, index);
+		_merge_or_redis_leaf(btree, bnode, index, key, &merge);
 	} else {
 		return Ok;
 	}
-
+	if (!merge) {
+		memcpy(PTR(bnode->key, (index ? (index-1) : 0), btree->key_len), key, btree->key_len);
+		return Ok;
+	} else {
+		_delete_pair(bnode, (index ? (index-1) : 0), btree->key_len);
+	}
 	while (1) {
 		if (bnode == btree->root) {
-			if (bnode->tag == NODE && bnode->ncount == 1) {
+			if (bnode->ncount == 1) {
 				btree->root = bnode->child[0];
-				free(bnode);
+				free_bnode(bnode);
 			}
-			return Ok;
+			break;
 		}
-		bnode = btree->track[--btree->curr_depth];
-
+		if (bnode->ncount >= btree->min_node) break;
+		bnode = btree->track[--btree->curr_depth].node;
+		index = btree->track[btree->curr_depth].index;
+		_merge_or_redis_node(btree, bnode, index, key, &merge);
+		if (!merge) {
+			memcpy(PTR(bnode->key, (index ? (index-1) : 0), btree->key_len), key, btree->key_len);
+			break;
+		} else {
+			_delete_pair(bnode, (index ? (index-1) : 0), btree->key_len);
+		}
 	}
+	return Ok;
 }
 
 status delete_data(BTree *btree, const void *key)
 {
 	BNode *leaf = _find_leaf(btree, key);
+
 	if (leaf->page->index != leaf->index)
 		leaf->page = get_page(&btree->pager, leaf->index);
 	else
@@ -337,9 +459,9 @@ status delete_data(BTree *btree, const void *key)
 	if (pos != 0xFF) {
 		delete_from_page(leaf->page, btree->n, pos, key, btree->data_len);
 		if (KEY(leaf) < btree->min_key)
-			_delete_fixup(btree);
+			_delete_fixup(btree, leaf);
 	} else {
-		// alert("不存在该关键值 :(");
+		alert("不存在该关键值 :(");
 		return Bad;
 	}
 	return Ok;

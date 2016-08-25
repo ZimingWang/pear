@@ -62,6 +62,8 @@ void _free_token(Token *token)
 
 void free_parser()
 {
+	if (parser.db)
+		shut(parser.db);
 	_free_buffer(&parser.buffer);
 	_free_token(&parser.token);
 }
@@ -114,9 +116,11 @@ static bool _parse_key(char **s, Token *tk)
 {// 获取关键值, 目前只支持字符串作关键值
  // 当函数返回时, s 指向 '\n'
 	char *ptr = ++*s;
-	if (*ptr != '\'') return false;
-	tk->ele[0] = ++ptr;
-	ptr = strchr(ptr, '\'');
+	if (*ptr++ != '\'') return false;
+	tk->ele[0] = ptr;
+	char *new = strchr(ptr, '\'');
+	tk->len[0] = new - ptr;
+	ptr = new;
 	*ptr++ = '\0';
 	// 到达这里时, 指针值应该为 '\n' 或 '\0'
 	if (*ptr != '\n' && *ptr != '\0') return false;
@@ -259,6 +263,8 @@ static status _parse_line()
 			break;
 		case '#':
 			while (*ptr && *ptr != '\n') ++ptr;
+		case 'q':
+			return Bad;
 		case '\n':
 			++ptr;
 			continue;
@@ -288,6 +294,8 @@ static void _print_token(Token *token)
 
 static void _reset_buffer(Buffer *buffer)
 {
+	buffer->len = 0;
+	buffer->ptr = buffer->mem;
 	memset(buffer->mem, 0, BUFFER_SIZE);
 }
 
@@ -317,6 +325,11 @@ status parse(const char *file)
 					put(parser.db, parser.token.ele, parser.token.len, parser.token.count);
 				break;
 			case DROP:
+				if (!parser.db)
+					alert("未选定或创建数据库 :(");
+				else
+					drop(parser.db, parser.token.ele[0], parser.token.len[0]);
+				break;
 			case GET:
 				if (!parser.db)
 					alert("未选定或创建数据库 :(");
@@ -330,6 +343,15 @@ status parse(const char *file)
 					warning("存在打开的数据库 %s :(", parser.db->name);
 				break;
 			case SHUT:
+				if (parser.db) {
+					if (!strncmp(parser.db->name, (char *)parser.token.ele[0], parser.token.len[0])) {
+						if (shut(parser.db)) parser.db = NULL;
+					} else {
+						warning("数据库名称错误 %s :(", (char *)parser.token.ele[0]);
+					}
+				} else
+					warning("不存在打开的数据库 %s :(", (char *)parser.token.ele[0]);
+				break;
 			case REMOVE:
 				warning("not implemented :(");
 				break;

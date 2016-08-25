@@ -47,7 +47,8 @@ typedef struct
 	PageBucket	 bucket[BUCKET_SIZE];
 }Pager;
 
-status init_pager(Pager *, uint16_t page_size);
+status init_pager(Pager *pager, uint16_t page_size);
+status free_pager(Pager *pager);
 Page*  fresh_page(Pager *pager);
 Page*  get_page(Pager *pager, uint32_t index);
 void	 insert_to_page(Page *page, const uint8_t max_key, const uint8_t pos,
@@ -56,6 +57,9 @@ void 	 split_page(Page *pdst, Page *psrc, const uint8_t beg, const uint8_t n,
 									const uint16_t len);
 void   delete_from_page(Page *page, const uint8_t max_key, const uint8_t pos,
 												const void *key, const uint16_t len);
+void 	 merge_page(Page *left, Page *right, const uint8_t n, const uint16_t len);
+void   move_last_to_right(Page *left, Page *right, const uint8_t n, const uint16_t len);
+void   move_first_to_left(Page *left, Page *right, const uint8_t n, const uint16_t len);
 void   scan_page(	const Page *page, const uint8_t max, const uint16_t total,
 									const uint8_t key_len);
 

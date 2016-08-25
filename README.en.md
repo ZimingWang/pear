@@ -3,7 +3,7 @@
 
 ###This is an upgrade of [Up Database](http://www.github.com/UncP/Up_Database)
 
-###Current Version 0.0.9
+###Current Version 0.1.0
 
 ####Goals
 - Faster than Up Database at million level data insertion and deletion
@@ -22,6 +22,7 @@
 
 * Version 0.0.9
 	- Insertion speed			``` 328000 tuples/second ```
+	- Deletion speed			``` 204000 tuples/second ```
 
 
 ###TODO

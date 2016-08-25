@@ -10,4 +10,4 @@ tag:
 	ctags --sort=yes -f .tags *.c *.h
 
 clean:
-	rm *.o pear .tags*
+	rm *.o pear .tags* rm -rf ../my

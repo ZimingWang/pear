@@ -93,10 +93,12 @@ status drop(DB *db, const void *key, const uint16_t len)
 		alert("关键值属性错误 :(");
 		return Bad;
 	}
-	char buf[len];
-	memcpy(buf, key, len);
-	if (delete_data(db->btree, buf))
+	if (delete_data(db->btree, key))
 		--db->tuple;
+	else {
+		printf("%d\n", db->tuple);
+		getchar();
+	}
 	return Ok;
 }
 
@@ -110,5 +112,16 @@ status get(const DB *db, const void *key, const uint16_t len)
 	char buf[len];
 	memcpy(buf, key, len);
 	// lookup_data(db->btree, key);
+	return Ok;
+}
+
+status shut(DB *db)
+{
+	if (db->table)
+		free_table(db->table);
+	if (db->btree)
+		if (free_btree(db->btree) != Ok)
+			return Bad;
+	free(db);
 	return Ok;
 }

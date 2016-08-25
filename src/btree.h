@@ -20,6 +20,8 @@ typedef struct BNode BNode;
 
 #define  MAX_DEPTH  8
 
+#define  PTR_SIZE  sizeof(BNode *)
+
 struct BNode
 {
 	uint8_t			 	 tag;			// LEAF  NODE
@@ -61,7 +63,7 @@ typedef struct
 }BTree;
 
 BTree* newBTree();
-void 	 free_btree(BTree *btree);
+status free_btree(BTree *btree);
 status init_btree(BTree *btree, uint16_t key_len, uint16_t total,
 									int8_t (*compare)(const void *, const void *, const uint32_t));
 status insert_data(BTree *btree, const void *val);

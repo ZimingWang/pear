@@ -24,7 +24,8 @@ typedef struct
 	char 	 	 	 dir[64];
 }DB;
 
-DB* newDB(const char *name);
+DB*    newDB(const char *name);
+status shut(DB *db);
 status create_table(DB *db, const void **name, const uint16_t *len, const uint8_t count);
 status put(DB *db, const void **val, const uint16_t *len, const uint8_t count);
 status drop(DB *db, const void *key, const uint16_t len);
