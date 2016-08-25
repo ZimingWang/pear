@@ -16,11 +16,11 @@
 
 ###Version Information
 #####Test Data 1000000 tuples, 80 bytes/tuple
-#####Consist of
-	* key    16  bytes
-	* value  64  bytes (1 key 1 value)
+	Consist of
+		- key    16  bytes
+		- value  64  bytes (1 key 1 value)
 
-* Version 0.0.9
+* Version 0.1.0
 	- Insertion speed			``` 328000 tuples/second ```
 	- Deletion speed			``` 204000 tuples/second ```
 
