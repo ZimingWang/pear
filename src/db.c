@@ -55,8 +55,8 @@ status create_table(DB *db, const void **name, const uint16_t *len, const uint8_
 	db->btree = newBTree();
 	if (!db->btree) return Bad;
 
-	uint8_t type, key_len;
-	uint16_t total;
+	uint8_t key_len;
+	uint16_t type, total;
 	get_table_info(db->table, &type, &key_len, &total);
 
 	int8_t (*compare)(const void *, const void *, const uint32_t);
@@ -95,10 +95,6 @@ status drop(DB *db, const void *key, const uint16_t len)
 	}
 	if (delete_data(db->btree, key))
 		--db->tuple;
-	else {
-		printf("%d\n", db->tuple);
-		getchar();
-	}
 	return Ok;
 }
 
@@ -109,8 +105,6 @@ status get(const DB *db, const void *key, const uint16_t len)
 		alert("关键值属性错误 :(");
 		return Bad;
 	}
-	char buf[len];
-	memcpy(buf, key, len);
 	// lookup_data(db->btree, key);
 	return Ok;
 }

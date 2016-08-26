@@ -89,22 +89,16 @@ static status _next_buffer()
 }
 
 static bool _parse_put(char **s, Token *tk)
-{// 获取所有要插入的元素,并依次使指针指向这些元素以备验证, 若是字符串, 记录下字符串长度
- // 当函数返回时, s 指向 '\n'
+{
 	char *ptr = ++*s;
 	for (; *ptr != '\n' && *ptr != '\0'; ) {
-		switch(*ptr) {
-		case '\'':
-			tk->ele[tk->count] = (void *)++ptr;
-			char *new = strchr(ptr, '\'');
-			*new = '\0';
-			tk->len[tk->count] = (uint16_t)(new - ptr);
-			ptr = ++new;
-			++tk->count;
-			break;
-		default:
-			return false;
-		}
+		if (*ptr != '\'') return false;
+		tk->ele[tk->count] = ++ptr;
+		char *new = strchr(ptr, '\'');
+		*new = '\0';
+		tk->len[tk->count] = new - ptr;
+		ptr = ++new;
+		++tk->count;
 		// 到达这里时, 指针值应该为 ' ' 或 '\n' 或 '\0'
 		if (*ptr == ' ') ++ptr;
 	}
@@ -113,24 +107,21 @@ static bool _parse_put(char **s, Token *tk)
 }
 
 static bool _parse_key(char **s, Token *tk)
-{// 获取关键值, 目前只支持字符串作关键值
- // 当函数返回时, s 指向 '\n'
+{
 	char *ptr = ++*s;
-	if (*ptr++ != '\'') return false;
-	tk->ele[0] = ptr;
+	if (*ptr != '\'') return false;
+	tk->ele[0] = ++ptr;
 	char *new = strchr(ptr, '\'');
 	tk->len[0] = new - ptr;
 	ptr = new;
 	*ptr++ = '\0';
-	// 到达这里时, 指针值应该为 '\n' 或 '\0'
 	if (*ptr != '\n' && *ptr != '\0') return false;
 	*s = ptr;
 	return true;
 }
 
 static bool _parse_database(char **s, Token *tk)
-{// 获取 'database' 及数据库名
- // 当函数返回时, s 指向 '\n'
+{
 	char *ptr = ++*s;
 	char *new = strchr(ptr, ' ');
 	*new = '\0';
@@ -161,47 +152,26 @@ static bool _parse_table(char **s, Token *tk)
 		ptr = strchr(ptr, ' ');
 		*ptr++ = '\0';
 		while (*ptr == ' ') ++ptr;
-		char *new = strchr(ptr, ' ');
-		*new = '\0';
-		if (!strcmp(ptr, "str")) {
-			ptr = ++new;
+		char *new = ptr;
+		while (*ptr != ' ' && *ptr != '\n') ++ptr;
+		*ptr++ = '\0';
+		if (!strcmp(new, "str")) {
 			while (*ptr == ' ') ++ptr;
-			tk->len[tk->count] = 0;
+			tk->len[tk->count] = STR;
 			while (isdigit(*ptr))
 				tk->len[tk->count] = 10 * tk->len[tk->count] + (*ptr++ - '0');
+			if (*ptr++ != '\n') return false;
 		} else {
 			return false;
 		}
 		++tk->count;
-		if (*ptr != '\n') return false;
 		++parser.line;
-		++ptr;
 	}
 	if (*++ptr != '\n') return false;
 	++parser.line;
 	*s = ptr;
 	return true;
 }
-
-/**
- *		open database  `name`
- *
- *		shut database  `name`
- *
- *		remove database  `name`
- *
- *		new table [
- *		  `name`  `type`
- *		  `name`  `type`
- *		  ...
- *		]
- *
- *		put  key  val val ...
- *
- *		get  key
- *
- *		drop  key
-**/
 
 static status _parse_line()
 {// 解析一行 pear 语句, 解析只负责语法检查, 不负责语义检查
@@ -263,8 +233,6 @@ static status _parse_line()
 			break;
 		case '#':
 			while (*ptr && *ptr != '\n') ++ptr;
-		case 'q':
-			return Bad;
 		case '\n':
 			++ptr;
 			continue;
@@ -277,20 +245,6 @@ done:
 	parser.buffer.ptr = ++ptr;
 	return Ok;
 }
-
-#ifdef DEBUG
-static void _print_token(Token *token)
-{
-	if (!token->count) {
-		printf("op %d   obj %s\n", token->op, (char *)token->ele[0]);
-	} else {
-		printf("op %d\n", token->op);
-		for (uint8_t i = 0; i != token->count; ++i) {
-			printf("%s  %d\n", (char *)token->ele[i], token->len[i]);
-		}
-	}
-}
-#endif
 
 static void _reset_buffer(Buffer *buffer)
 {

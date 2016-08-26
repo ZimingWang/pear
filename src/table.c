@@ -73,9 +73,9 @@ status write_table(const Table *table, int *fd)
 	return Ok;
 }
 
-void get_table_info(const Table *table, uint8_t *type, uint8_t *len, uint16_t *total)
+void get_table_info(const Table *table, uint16_t *type, uint8_t *len, uint16_t *total)
 {
-	assert(table->attri_num > 0 && table->attribute[0].len > 0);
+	assert(table->attri_num);
 	*type = STR;
 	*len = table->attribute[0].len;
 	*total = 0;

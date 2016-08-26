@@ -17,13 +17,11 @@ typedef uint8_t bool;
 #define  true   1
 #define  false  0
 
-#define  STR  0
-#define  INT 	1
+#define  STR   0
 
 int8_t compare_str(const void *s1, const void *s2, const uint32_t len);
-int8_t compare_int(const void *i1, const void *i2, const uint32_t len);
 
-void get_comparator(const uint8_t type,
-										int8_t (**fun)(const void *, const void *, const uint32_t));
+void   get_comparator(const uint16_t type,
+											int8_t (**fun)(const void *, const void *, const uint32_t));
 
 #endif /* _UTIL_H_ */

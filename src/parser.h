@@ -10,7 +10,6 @@
 #ifndef _PARSER_H_
 #define _PARSER_H_
 
-#include "util.h"
 #include "error.h"
 #include "db.h"
 

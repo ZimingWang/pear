@@ -58,20 +58,6 @@ void free_bnode(BNode *bnode)
 	free(bnode);
 }
 
-#ifdef DEBUG
-static void _print_btree_info(const Btree *btree)
-{
-	char buf[512];
-	sprintf(buf, "N = %d\n", btree->n);
-	sprintf(buf + strlen(buf), "key_len    = %d\n", btree->key_len);
-	sprintf(buf + strlen(buf), "min_key    = %d\n", btree->min_key);
-	sprintf(buf + strlen(buf), "max_key    = %d\n", btree->max_key);
-	sprintf(buf + strlen(buf), "min_node   = %d\n", btree->min_node);
-	sprintf(buf + strlen(buf), "max_node   = %d\n", btree->max_node);
-	printf("%s", buf);
-}
-#endif
-
 status init_btree(BTree 	*btree, uint16_t key_len, uint16_t total,
 									int8_t (*compare)(const void *, const void *, const uint32_t))
 {
@@ -79,7 +65,6 @@ status init_btree(BTree 	*btree, uint16_t key_len, uint16_t total,
 		return Bad;
 
 	btree->n = ((btree->pager.page_size - 1) / (total + 1)) + 1;
-	assert(key_len < 256);
 	btree->key_len  = key_len;
 
 	btree->min_key  = ((btree->n - 1) + ((btree->n - 1) % 2)) >> 1;
@@ -88,9 +73,7 @@ status init_btree(BTree 	*btree, uint16_t key_len, uint16_t total,
 	btree->min_node = (btree->n + (btree->n % 2)) >> 1;
 	btree->max_node = btree->n + 1;
 	btree->data_len = total;
-#ifdef DEBUG
-	_print_btree_info(btree);
-#endif
+
 	btree->root = newBNode(btree, LEAF);
 	if (!btree->root)
 		return Bad;

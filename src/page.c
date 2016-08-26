@@ -56,7 +56,6 @@ static status _free_page(Page *page, const uint16_t page_size)
 		free(page->data);
 
 	free(page);
-
 	return Ok;
 }
 
@@ -69,13 +68,11 @@ static status _init_bucket(PageBucket *bucket, uint8_t size, const uint16_t page
 	}
 
 	uint8_t bit_size = size / 8 + ((size % 8) ? 1 : 0);
-
 	bucket->bit  = (uint8_t *)calloc(bit_size, sizeof(uint8_t));
 	if (!bucket->bit)
 		warning("桶初始化失败 :(");
 
 	bucket->size = size;
-
 	return Ok;
 }
 
@@ -90,7 +87,6 @@ static status _free_bucket(PageBucket *bucket, const uint16_t page_size)
 
 	if (bucket->bit)
 		free(bucket->bit);
-
 	return Ok;
 }
 
@@ -111,7 +107,6 @@ status free_pager(Pager *pager)
 
 	if (pager->data_fd)
 		free(pager->data_fd);
-
 	return Ok;
 }
 
@@ -262,10 +257,8 @@ void merge_page(Page *left, Page *right, const uint8_t n, const uint16_t len)
 {
 	uint8_t lnum = *(uint8_t *)(left->data + 0);
 	uint8_t rnum = *(uint8_t *)(right->data + 0);
-
 	uint8_t *lindex = (uint8_t *)(left->data + 1);
 	uint8_t *rindex = (uint8_t *)(right->data + 1);
-
 	void *ldata = left->data + n;
 	void *rdata = right->data + n;
 
@@ -275,24 +268,20 @@ void merge_page(Page *left, Page *right, const uint8_t n, const uint16_t len)
 	}
 
 	*(uint8_t *)(left->data + 0)  = lnum + rnum;
-	// *(uint8_t *)(right->data + 0) = 0;
 
 	left->dirty  = true;
-	// right->dirty = false;
 }
 
 void move_last_to_right(Page *left, Page *right, const uint8_t n, const uint16_t len)
 {
 	uint8_t *ldata = (uint8_t *)(left->data + 1);
 	uint8_t *rdata = (uint8_t *)(right->data + 1);
-
 	uint8_t lnum = --*(uint8_t *)(left->data + 0);
 	uint8_t rnum = (*(uint8_t *)(right->data + 0))++;
 	uint8_t pos  = ldata[lnum];
 
 	memmove(rdata + 1, rdata, rnum);
 	rdata[0] = rnum;
-
 	memcpy(right->data + n + (uint32_t)rnum * len, left->data + n + (uint32_t)pos * len , len);
 
 	for (uint8_t i = 0; i < lnum; ++i) {
@@ -313,14 +302,11 @@ void move_first_to_left(Page *left, Page *right, const uint8_t n, const uint16_t
 {
 	uint8_t *ldata = (uint8_t *)(left->data + 1);
 	uint8_t *rdata = (uint8_t *)(right->data + 1);
-
 	uint8_t lnum = (*(uint8_t *)(left->data + 0))++;
 	uint8_t rnum = --*(uint8_t *)(right->data + 0);
-
 	uint8_t pos  = rdata[0];
 
 	ldata[lnum] = lnum;
-
 	memcpy(left->data + n + (uint32_t)lnum * len, right->data + n + (uint32_t)pos * len , len);
 
 	for (uint8_t i = 0; i < rnum; ++i) {

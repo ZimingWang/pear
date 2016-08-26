@@ -34,6 +34,6 @@ bool	 verify_attributes(	const Table *table, const void **val, const uint16_t *l
 													const uint8_t count, void *buf);
 bool 	 verify_key(const Table *table, const uint16_t len);
 status write_table(const Table *table, int *fd);
-void 	 get_table_info(const Table *table, uint8_t *type, uint8_t *len, uint16_t *total);
+void 	 get_table_info(const Table *table, uint16_t *type, uint8_t *len, uint16_t *total);
 
 #endif /* _TABLE_H_ */
