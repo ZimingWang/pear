@@ -1,11 +1,12 @@
 ##Special Version 0.1.0
+[中文版 README](./README.md)
+
 	test data 1000000 tuples, 80 bytes/tuple
 	consist of: key  16  bytes,  value  64  bytes
 
 - Insertion speed			``` 328000 tuples/second ```
 - Deletion speed			``` 204000 tuples/second ```
 
-	largest amount of test data: 5 million tuples
 
 It is a non-relational database written in C, which consists of 6 modules, 16 files and has less than 2000 lines of code.
 
