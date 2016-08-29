@@ -1,12 +1,12 @@
 #! /bin/sh
 rm -rf ../my
 
-put=3
+put=1
 drop=0
 
 beg1=1
 end1=`echo "$beg1+$put" | bc`
-beg2=101
+beg2=1001
 end2=`echo "$beg2+$drop" | bc`
 
 make
@@ -15,9 +15,9 @@ beg=$(date +%s.%N)
 ./pear $beg1 $end1 $beg2 $end2
 end=$(date +%s.%N)
 
-res=`echo "$end-$beg" | bc`
-gprof pear ../my/gmon.out -p > pinfo
-sed -n -e 4,19p -s pinfo
-rm ../my/gmon.out pinfo
+t=`echo "$end-$beg" | bc`
+# gprof pear ../my/gmon.out -p > pinfo
+# sed -n -e 4,19p -s pinfo
+# rm ../my/gmon.out pinfo
 
-echo $res
+echo $t

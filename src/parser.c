@@ -233,6 +233,8 @@ static status _parse_line()
 			break;
 		case '#':
 			while (*ptr && *ptr != '\n') ++ptr;
+		case 'q':
+			return Bad;
 		case '\n':
 			++ptr;
 			continue;

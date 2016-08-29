@@ -16,7 +16,7 @@
 
 DB* newDB(const char *name)
 {
-	if (mkdir(name, S_IRUSR | S_IWUSR) < 0)
+	if (mkdir(name, S_IRUSR | S_IWUSR | S_IROTH) < 0)
 		warning("数据库已存在于当前目录 :(");
 	if (chdir(name) < 0)
 		warning("数据库初始化失败 :(");
