@@ -4,7 +4,7 @@
 ###This is an upgrade of [Up Database](http://www.github.com/UncP/Up_Database)
 ####If you are implementing a database yourself, or you are new to database learning, it is highly recommended that you open directory [v0.1.0](./v0.1.0)
 
-###Current Version 0.1.0
+###Current Version 0.1.1
 
 ####Goals
 - Faster than Up Database at million level data insertion and deletion

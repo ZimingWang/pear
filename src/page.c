@@ -177,15 +177,15 @@ Page* get_page(Pager *pager, uint32_t index)
 	return _get_page(pager, bucket_index, fd, index, false);
 }
 
-void insert_to_page(Page *page, const uint8_t max_key, const uint8_t pos,
+void insert_to_page(Page *page, const uint8_t max, const uint8_t pos,
 	const void *val, const uint16_t len)
 {
 	void *data = page->data + 1;
-	assert(max_key > pos);
-	memmove(data + pos + 1, data + pos, (uint32_t)(max_key - pos - 1));
+	assert(max > pos);
+	memmove(data + pos + 1, data + pos, (uint32_t)(max - pos - 1));
 	uint8_t end = *(uint8_t *)(data - 1);
 	*(uint8_t *)(data + pos) = end;
-	data += max_key + (uint32_t)end * len;
+	data += max + (uint32_t)end * len;
 	memcpy(data, val, len);
 	++*(uint8_t *)(page->data + 0);
 	page->dirty = true;
@@ -208,17 +208,18 @@ static void _fill_empty(uint8_t *start, const uint8_t emp,
 	}
 }
 
-void split_page(Page *pdst, Page *psrc, const uint8_t beg, const uint8_t n, const uint16_t len)
+void split_page(Page *pdst, Page *psrc, const uint8_t beg, const uint8_t end,
+	const uint16_t len)
 {
-	uint8_t num 	 = n - 1 - beg;
+	uint8_t num 	 = end - 1 - beg;
 	uint8_t *ssrc  = psrc->data + 1;
 	uint8_t *sdst  = pdst->data + 1;
-	uint8_t *src = psrc->data + n;
-	uint8_t *dst = pdst->data + n;
+	uint8_t *src = psrc->data + end;
+	uint8_t *dst = pdst->data + end;
 	uint8_t pos = 0;
 	for (uint8_t i = 0; i < num; ++i)
 		sdst[i] = i;
-	for (uint8_t i = (uint8_t)beg, end = n - 1; i < end; ++i) {
+	for (uint8_t i = (uint8_t)beg, over = end - 1; i < over; ++i) {
 		uint8_t id = ssrc[i];
 		uint8_t *str = src + len * id;
 		memcpy(dst, str, len);
@@ -232,19 +233,19 @@ void split_page(Page *pdst, Page *psrc, const uint8_t beg, const uint8_t n, cons
 	psrc->dirty = true;
 }
 
-void delete_from_page(Page *page, const uint8_t n, const uint8_t pos, const void *key,
+void delete_from_page(Page *page, const uint8_t end, const uint8_t pos, const void *key,
 	const uint16_t len)
 {
 	uint8_t *index = (uint8_t *)(page->data + 1);
-	uint8_t idx  = index[pos];
 	uint8_t num = --*(uint8_t *)(page->data + 0);
+	uint8_t idx  = index[pos];
 
-	void *data = page->data + n;
+	void *data = page->data + end;
 
 	if (idx != num)
 		memcpy(data + (uint32_t)idx * len, data + (uint32_t)num * len, len);
 
-	for (uint8_t i = 0; i != num; ++i) {
+	for (uint8_t i = 0; i < num; ++i) {
 		if (i >= pos)
 			index[i] = index[i + 1];
 		if (index[i] == num)
@@ -253,14 +254,14 @@ void delete_from_page(Page *page, const uint8_t n, const uint8_t pos, const void
 	page->dirty = true;
 }
 
-void merge_page(Page *left, Page *right, const uint8_t n, const uint16_t len)
+void merge_page(Page *left, Page *right, const uint8_t end, const uint16_t len)
 {
 	uint8_t lnum = *(uint8_t *)(left->data + 0);
 	uint8_t rnum = *(uint8_t *)(right->data + 0);
 	uint8_t *lindex = (uint8_t *)(left->data + 1);
 	uint8_t *rindex = (uint8_t *)(right->data + 1);
-	void *ldata = left->data + n;
-	void *rdata = right->data + n;
+	void *ldata = left->data + end;
+	void *rdata = right->data + end;
 
 	for (uint32_t i = 0, j = lnum; i < rnum; ++i, ++j) {
 		lindex[j] = lnum + rindex[i];
@@ -270,59 +271,71 @@ void merge_page(Page *left, Page *right, const uint8_t n, const uint16_t len)
 	*(uint8_t *)(left->data + 0)  = lnum + rnum;
 
 	left->dirty  = true;
+	right->dirty = false;
 }
 
-void move_last_to_right(Page *left, Page *right, const uint8_t n, const uint16_t len)
+void move_last_to_right(Page *left, Page *right, const uint8_t pos, const uint8_t end,
+	const uint16_t len)
 {
-	uint8_t *ldata = (uint8_t *)(left->data + 1);
-	uint8_t *rdata = (uint8_t *)(right->data + 1);
 	uint8_t lnum = --*(uint8_t *)(left->data + 0);
-	uint8_t rnum = (*(uint8_t *)(right->data + 0))++;
-	uint8_t pos  = ldata[lnum];
+	uint8_t *lindex = (uint8_t *)(left->data + 1);
+	uint8_t *rindex = (uint8_t *)(right->data + 1);
 
-	memmove(rdata + 1, rdata, rnum);
-	rdata[0] = rnum;
-	memcpy(right->data + n + (uint32_t)rnum * len, left->data + n + (uint32_t)pos * len , len);
+	uint8_t idx = rindex[pos];
+	memmove(rindex + 1, rindex, pos);
+	rindex[0] = idx;
+
+	void *ldata = left->data + end;
+	void *rdata = right->data + end;
+	uint8_t seq = lindex[lnum];
+	memcpy(rdata + (uint32_t)idx * len, ldata + (uint32_t)seq * len , len);
 
 	for (uint8_t i = 0; i < lnum; ++i) {
-		if (ldata[i] == lnum) {
-			ldata[i] = pos;
+		if (lindex[i] == lnum) {
+			lindex[i] = seq;
 			break;
 		}
 	}
 
-	if (pos != lnum)
-		memcpy(left->data + n + (uint32_t)pos * len, left->data + n + (uint32_t)lnum * len, len);
+	if (seq != lnum)
+		memcpy(ldata + (uint32_t)seq * len, ldata + (uint32_t)lnum * len, len);
 
 	left->dirty  = true;
 	right->dirty = true;
 }
 
-void move_first_to_left(Page *left, Page *right, const uint8_t n, const uint16_t len)
+void move_first_to_left(Page *left, Page *right, const uint8_t pos, const uint8_t end,
+	const uint16_t len)
 {
-	uint8_t *ldata = (uint8_t *)(left->data + 1);
-	uint8_t *rdata = (uint8_t *)(right->data + 1);
-	uint8_t lnum = (*(uint8_t *)(left->data + 0))++;
+	uint8_t lnum = *(uint8_t *)(left->data + 0);
 	uint8_t rnum = --*(uint8_t *)(right->data + 0);
-	uint8_t pos  = rdata[0];
+	uint8_t *lindex = (uint8_t *)(left->data + 1);
+	uint8_t *rindex = (uint8_t *)(right->data + 1);
 
-	ldata[lnum] = lnum;
-	memcpy(left->data + n + (uint32_t)lnum * len, right->data + n + (uint32_t)pos * len , len);
+	uint8_t idx = lindex[pos];
+	memmove(lindex + pos, lindex + pos + 1, lnum - pos - 1);
+	lindex[lnum - 1] = idx;
+
+	void *ldata = left->data + end;
+	void *rdata = right->data + end;
+
+	uint8_t seq = rindex[0];
+	memcpy(ldata + (uint32_t)idx * len, rdata + (uint32_t)seq * len , len);
 
 	for (uint8_t i = 0; i < rnum; ++i) {
-		rdata[i] = rdata[i + 1];
-		if (rdata[i] == rnum)
-			rdata[i] = pos;
+		rindex[i] = rindex[i + 1];
+		if (rindex[i] == rnum)
+			rindex[i] = seq;
 	}
 
-	if (pos != rnum)
-		memcpy(right->data + n + (uint32_t)pos * len, right->data + n + (uint32_t)rnum * len, len);
+	if (seq != rnum)
+		memcpy(rdata + (uint32_t)seq * len, rdata + (uint32_t)rnum * len, len);
 
 	left->dirty  = true;
 	right->dirty = true;
 }
 
-void scan_page(const Page *page, const uint8_t n, const uint16_t total, const uint8_t key_len)
+void scan_page(const Page *page, const uint8_t off, const uint16_t total, const uint8_t key_len)
 {
 	char buf[4096];
 	uint32_t end = *(uint8_t *)(page->data + 0);
@@ -337,7 +350,7 @@ void scan_page(const Page *page, const uint8_t n, const uint16_t total, const ui
 	buf[len++] = '\n';
 	for (uint32_t i = 0; i != end; ++i) {
 		uint32_t index = *(uint8_t *)(page->data + 1 + i);
-		snprintf(buf + len, key_len, "%s", (char *)(page->data + n + index * total));
+		snprintf(buf + len, key_len, "%s", (char *)(page->data + off + index * total));
 		len += key_len - 1;
 		snprintf(buf + len, 5, "%s", "     ");
 		len += 4;

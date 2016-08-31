@@ -64,7 +64,7 @@ status create_table(DB *db, const void **name, const uint16_t *len, const uint8_
 	get_comparator(type, &compare);
 
 	if (init_btree(db->btree, key_len, total, compare) != Ok) {
-		free_btree(db->btree);
+		free(db->btree);
 		db->btree = NULL;
 		free_table(db->table);
 		db->table = NULL;
@@ -113,9 +113,10 @@ status shut(DB *db)
 {
 	if (db->table)
 		free_table(db->table);
-	if (db->btree)
+	if (db->btree) {
 		if (free_btree(db->btree) != Ok)
 			return Bad;
+	}
 	free(db);
 	return Ok;
 }
