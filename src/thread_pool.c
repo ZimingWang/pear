@@ -1,21 +1,19 @@
 /**
  *    > Author:   UncP
  *    > Mail:     770778010@qq.com
- *    > Github:   https://www.github.com/UncP/pear
+ *    > Link:     https://www.github.com/UncP/pear
  *    > Description:
  *
- *    > Created Time: 2016-08-29 20:41:59
+ *    > Created Time: 2016-09-03 16:36:51
 **/
 
 #include <stdlib.h>
 
-#include "jobqueue.h"
+#include "thread_pool.h"
 
 static JobQueue queue;
 
-static pthread_t tid[MAX_THREAD_NUM];
-
-void put_job(void* (*fun)(void *), void *arg)
+void put_job(void* (*fun)(void *, void *), void *arg1, void *arg2)
 {
 	int8_t seq;
 	Job *job;
@@ -25,7 +23,8 @@ void put_job(void* (*fun)(void *), void *arg)
 	seq = queue.avail[queue.front];
 	job = &queue.base[seq];
 	job->fun = fun;
-	job->arg = arg;
+	job->arg1 = arg1;
+	job->arg2 = arg2;
 	queue.avail[queue.front] 	= -1;
 	queue.work[queue.front++] = seq;
 	if (queue.front == JOB_QUEUE_SIZE) queue.front = 0;
@@ -50,7 +49,8 @@ static void* _run_job(void *arg)
 		queue.work[queue.work_back++] = -1;
 		if (queue.work_back == JOB_QUEUE_SIZE) queue.work_back = 0;
 		pthread_mutex_unlock(&queue.lock);
-		job->fun(job->arg);
+		job->fun(job->arg1, job->arg2);
+		free(job->arg2);
 		pthread_mutex_lock(&queue.lock);
 		queue.avail[queue.avail_back++] = seq;
 		if (queue.avail_back == JOB_QUEUE_SIZE) queue.avail_back = 0;
@@ -60,7 +60,7 @@ static void* _run_job(void *arg)
 	return (void *)NULL;
 }
 
-void clear_job()
+void clear_job_queue()
 {
 	pthread_mutex_lock(&queue.lock);
 	while (queue.front != queue.avail_back || queue.front != queue.work_back)
@@ -82,26 +82,18 @@ status init_job_queue()
 		queue.avail[i] = i;
 		queue.work[i]  = -1;
 	}
-	if (pthread_mutex_init(&queue.lock, NULL)) {
-		free(queue.base);
-		queue.base = NULL;
+	if (pthread_mutex_init(&queue.lock, NULL))
 		warning("工作队列锁初始化失败 :(");
-	}
-	if (pthread_cond_init(&queue.ready, NULL)) {
-		free(queue.base);
-		queue.base = NULL;
+	if (pthread_cond_init(&queue.ready, NULL))
 		warning("工作队列锁初始化失败 :(");
-	}
-	if (pthread_cond_init(&queue.empty, NULL)) {
-		free(queue.base);
-		queue.base = NULL;
+	if (pthread_cond_init(&queue.empty, NULL))
 		warning("工作队列锁初始化失败 :(");
-	}
 
 	for (size_t i = 0; i < MAX_THREAD_NUM; ++i) {
-		if (pthread_create(&tid[i], NULL, _run_job, (void *)NULL))
+		pthread_t pid;
+		if (pthread_create(&pid, NULL, _run_job, (void *)NULL))
 			warning("工作线程初始化失败 :(\n");
-		if (pthread_detach(tid[i]))
+		if (pthread_detach(pid))
 			warning("工作线程脱离失败 :(\n");
 	}
 	return Ok;
@@ -109,11 +101,9 @@ status init_job_queue()
 
 void free_job_queue()
 {
-	if (queue.base)
-		free(queue.base);
+	clear_job_queue();
+	if (queue.base) free(queue.base);
 
-	// for (size_t i = 0; i < MAX_THREAD_NUM; ++i)
-		// pthread_cancel(tid[i]);
 	if (pthread_mutex_destroy(&queue.lock))
 		// printf("工作队列锁销毁失败 :(\n");
 		;
@@ -123,4 +113,15 @@ void free_job_queue()
 	if (pthread_cond_destroy(&queue.empty))
 		// printf("工作队列条件变量销毁失败 :(\n");
 		;
+}
+
+void print_job_status()
+{
+	for (int i = 0; i < JOB_QUEUE_SIZE;) {
+		printf("%-2d %-2d     ", queue.avail[i], queue.work[i]);
+		if (!(++i % 4))
+			printf("\n");
+	}
+	printf("front %d avail_back %d work_back %d\n",
+		queue.front, queue.avail_back, queue.work_back);
 }

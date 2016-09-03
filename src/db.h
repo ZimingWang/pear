@@ -11,6 +11,7 @@
 #define _DB_H_
 
 #include "error.h"
+#include "thread_pool.h"
 #include "table.h"
 #include "btree.h"
 
@@ -19,7 +20,6 @@ typedef struct
 	char 			 name[32];
 	Table    	*table;
 	BTree	  	*btree;
-	uint32_t   tuple;
 	int 		   table_fd;
 	char 	 	 	 dir[64];
 }DB;
@@ -30,5 +30,6 @@ status create_table(DB *db, const void **name, const uint16_t *len, const uint8_
 status put(DB *db, const void **val, const uint16_t *len, const uint8_t count);
 status drop(DB *db, const void *key, const uint16_t len);
 status get(const DB *db, const void *key, const uint16_t len);
+uint32_t tuple_number(const DB *db);
 
 #endif /* _DB_H_ */

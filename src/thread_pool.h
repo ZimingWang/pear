@@ -1,27 +1,28 @@
 /**
  *    > Author:   UncP
  *    > Mail:     770778010@qq.com
- *    > Github:   https://www.github.com/UncP/pear
+ *    > Link:     https://www.github.com/UncP/pear
  *    > Description:
  *
- *    > Created Time: 2016-08-29 20:41:36
+ *    > Created Time: 2016-09-03 16:36:51
 **/
 
-#ifndef _JOBQUEUE_H_
-#define _JOBQUEUE_H_
+#ifndef _THREADPOOL_H_
+#define _THREADPOOL_H_
 
 #include <pthread.h>
 
 #include "util.h"
 #include "error.h"
 
-#define  MAX_THREAD_NUM  0x3
-#define  JOB_QUEUE_SIZE	 0x8
+#define  MAX_THREAD_NUM  0x1
+#define  JOB_QUEUE_SIZE	 0x10
 
 typedef struct Job
 {
-	void* (*fun)(void *);
-	void* arg;
+	void* (*fun)(void *, void *);
+	void* arg1;
+	void* arg2;
 }Job;
 
 typedef struct
@@ -38,9 +39,9 @@ typedef struct
 }JobQueue;
 
 status init_job_queue();
-void put_job(void* (*)(void *), void *);
-void clear_job();
-void free_job_queue();
-void print_job_status();
+void   put_job(void* (*)(void *, void *), void *, void *);
+void   clear_job_queue();
+void   free_job_queue();
+void   print_job_status();
 
-#endif /* _JOBQUEUE_H_ */
+#endif /* _THREADPOOL_H_ */

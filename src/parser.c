@@ -270,7 +270,7 @@ status parse(const char *file)
 	for (;;) {
 		if ((s = _parse_line()) != Ok) {
 			close(parser.fd);
-			if (parser.db) printf("%d\n", parser.db->tuple);
+			printf("%d\n", tuple_number(parser.db));
 			return s;
 		}
 		switch(parser.token.op) {

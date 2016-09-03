@@ -10,6 +10,8 @@
 #ifndef _BTREE_H_
 #define _BTREE_H_
 
+#include <pthread.h>
+
 #include "error.h"
 #include "page.h"
 
@@ -20,11 +22,13 @@ typedef struct BNode BNode;
 
 #define  MAX_DEPTH  8
 
-#define  PTR_SIZE  sizeof(BNode *)
+#define  PTR_SIZE  (sizeof(BNode *))
 
 struct BNode
 {
-	uint8_t			 	 tag;			// LEAF  NODE
+	unsigned			tag:1;			// LEAF  NODE
+	unsigned     lock:1;
+	unsigned         :6;
 	uint8_t 		kcount;			// 关键值数量
 	uint8_t 		ncount;			// 孩子结点数量 NODE
 	uint32_t		index;			// 页面号      LEAF
@@ -56,8 +60,8 @@ typedef struct
 	BNode       *root;
 	Pager        pager;
 
-	Pair         track[MAX_DEPTH];
-	uint8_t      curr_depth;
+	pthread_mutex_t lock;
+	uint32_t   tuple;
 
 	int8_t     (*compare)(const void *, const void *, const uint32_t);
 }BTree;

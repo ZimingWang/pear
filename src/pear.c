@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 #include "parser.h"
+#include "thread_pool.h"
 
 status init_test(const char *dir)
 {
@@ -53,6 +54,7 @@ int main(int argc, char **argv)
 
 	strcat(dir, "/pear_syn/");
 
+	init_job_queue();
 	init_parser();
 
 	if (init_test(dir) != Fatal) {
@@ -61,6 +63,7 @@ int main(int argc, char **argv)
 	}
 
 	free_parser();
+	free_job_queue();
 
 	return 0;
 }
