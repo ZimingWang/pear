@@ -11,7 +11,6 @@
 #define _DB_H_
 
 #include "error.h"
-#include "thread_pool.h"
 #include "table.h"
 #include "btree.h"
 

@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 
 #include "db.h"
+#include "thread_pool.h"
 
 DB* newDB(const char *name)
 {
@@ -70,6 +71,7 @@ status create_table(DB *db, const void **name, const uint16_t *len, const uint8_
 		db->table = NULL;
 		return Bad;
 	}
+
 	return Ok;
 }
 
@@ -80,7 +82,7 @@ status put(DB *db, const void **val, const uint16_t *len, const uint8_t count)
 	if (!verify_attributes(db->table, val, len, count, buf))
 		alert("插入数据与表属性不匹配 :(");
 
-	put_job(insert_data, db->btree, buf);
+	put_job(insert_data, (void *)db->btree, buf);
 
 	// insert_data(db->btree, buf);
 	return Ok;

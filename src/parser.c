@@ -15,6 +15,7 @@
 
 #include "parser.h"
 #include "table.h"
+#include "thread_pool.h"
 
 enum OP { PUT, DROP, GET, OPEN, SHUT, REMOVE, NEW };
 
@@ -270,6 +271,7 @@ status parse(const char *file)
 	for (;;) {
 		if ((s = _parse_line()) != Ok) {
 			close(parser.fd);
+			clear_job_queue();
 			printf("%d\n", tuple_number(parser.db));
 			return s;
 		}

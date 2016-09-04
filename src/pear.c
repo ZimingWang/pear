@@ -62,8 +62,8 @@ int main(int argc, char **argv)
 		test(dir, beg2, end2);
 	}
 
-	free_parser();
 	free_job_queue();
+	free_parser();
 
 	return 0;
 }

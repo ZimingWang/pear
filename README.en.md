@@ -25,4 +25,7 @@
 
 
 ###TODO
-- [ ] insert, select, delete operation
+- [x] insert, select, delete operation
+- [x] thread pool
+- [ ] memory pool
+- [ ] concurrent index

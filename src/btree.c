@@ -135,6 +135,12 @@ static BNode* _find_leaf(BTree *btree, const void *key, Pair *stack, uint8_t *de
 		++*depth;
 		curr = curr->child[index];
 	}
+
+	if (curr->page->index != curr->index)
+		curr->page = get_page(&btree->pager, curr->index);
+	else
+		++curr->page->age;
+
 	return curr;
 }
 
@@ -244,53 +250,6 @@ static status _insert_fixup(BTree *btree, BNode *left, char *key, BNode *right,
 		memcpy(key, PTR(left->key, btree->min_key, btree->key_len), btree->key_len);
 		_insert_pair(bnode, index, right, key, btree->key_len);
 	}
-	return Ok;
-}
-
-status insert_data(BTree *btree, const void *val)
-{
-	pthread_mutex_lock(&btree->lock);
-	uint8_t depth = 0;
-	Pair stack[MAX_DEPTH];
-
-	BNode *leaf = _find_leaf(btree, val, stack, &depth);
-	if (leaf->page->index != leaf->index)
-		leaf->page = get_page(&btree->pager, leaf->index);
-	else
-		++leaf->page->age;
-
-	uint8_t pos = _get_index(	leaf->page->data, btree->data_len, btree->max_key,
-														val, btree->key_len, btree->compare, true);
-	if (pos != 0xFF) {
-		if (KEY(leaf) != btree->max_key) {
-			insert_to_page(leaf->page, btree->max_key, pos, val, btree->data_len);
-		} else {
-			leaf->page->status = WRITE;
-			BNode *new = newBNode(btree, LEAF);
-			leaf->page->status = false;
-			char key[btree->key_len];
-			if (pos >= btree->min_key) {
-				split_page(new->page, leaf->page, btree->min_key, btree->n, btree->data_len);
-				pos -= btree->min_key;
-				if (!pos) memcpy(key, val, btree->key_len);
-				else      memcpy(key, new->page->data + btree->n, btree->key_len);
-				insert_to_page(new->page, btree->max_key, pos, val, btree->data_len);
-			} else {
-				split_page(new->page, leaf->page, btree->min_key-1, btree->n, btree->data_len);
-				memcpy(key, new->page->data + btree->n, btree->key_len);
-				insert_to_page(leaf->page, btree->max_key, pos, val, btree->data_len);
-			}
-			new->child = leaf->child;
-			leaf->child  = (BNode **)new;
-			++new->page->age;
-			_insert_fixup(btree, leaf, key, new, stack, depth);
-		}
-		++btree->tuple;
-	} else {
-		// alert("拥有该关键值的数据已存在 :(");
-		return Bad;
-	}
-	pthread_mutex_unlock(&btree->lock);
 	return Ok;
 }
 
@@ -440,16 +399,10 @@ static status _delete_fixup(BTree *btree, BNode *parent, Pair *stack, uint8_t de
 
 status delete_data(BTree *btree, const void *key)
 {
-	pthread_mutex_lock(&btree->lock);
 	uint8_t depth = 0;
 	Pair stack[MAX_DEPTH];
 
 	BNode *leaf = _find_leaf(btree, key, stack, &depth);
-
-	if (leaf->page->index != leaf->index)
-		leaf->page = get_page(&btree->pager, leaf->index);
-	else
-		++leaf->page->age;
 
 	uint8_t pos = _get_index(	leaf->page->data, btree->data_len, btree->max_key,
 														key, btree->key_len, btree->compare, false);
@@ -464,16 +417,56 @@ status delete_data(BTree *btree, const void *key)
 			_merge_or_redis_leaf(btree, parent, pos, index, key, &merge);
 			if (!merge) {
 				memcpy(PTR(parent->key, (index ? (index-1) : 0), btree->key_len), key, btree->key_len);
-				return Ok;
 			} else {
 				_delete_pair(parent, (index ? (index-1) : 0), btree->key_len);
+				_delete_fixup(btree, parent, stack, depth);
 			}
-			_delete_fixup(btree, parent, stack, depth);
 		}
 		--btree->tuple;
 	} else {
 		alert("不存在该关键值 :(");
-		pthread_mutex_unlock(&btree->lock);
+		return Bad;
+	}
+	return Ok;
+}
+
+status insert_data(void *tree, const void *val)
+{
+	BTree *btree = (BTree *)tree;
+	uint8_t depth = 0;
+	Pair stack[MAX_DEPTH];
+	pthread_mutex_lock(&btree->lock);
+	BNode *leaf = _find_leaf(btree, val, stack, &depth);
+
+	uint8_t pos = _get_index(	leaf->page->data, btree->data_len, btree->max_key,
+														val, btree->key_len, btree->compare, true);
+	if (pos != 0xFF) {
+		if (KEY(leaf) != btree->max_key) {
+			insert_to_page(leaf->page, btree->max_key, pos, val, btree->data_len);
+		} else {
+			leaf->page->status = WRITE;
+			BNode *new = newBNode(btree, LEAF);
+			leaf->page->status = false;
+			char key[btree->key_len];
+			if (pos >= btree->min_key) {
+				split_page(new->page, leaf->page, btree->min_key, btree->n, btree->data_len);
+				pos -= btree->min_key;
+				if (!pos) memcpy(key, val, btree->key_len);
+				else      memcpy(key, new->page->data + btree->n, btree->key_len);
+				insert_to_page(new->page, btree->max_key, pos, val, btree->data_len);
+			} else {
+				split_page(new->page, leaf->page, btree->min_key-1, btree->n, btree->data_len);
+				memcpy(key, new->page->data + btree->n, btree->key_len);
+				insert_to_page(leaf->page, btree->max_key, pos, val, btree->data_len);
+			}
+			new->child = leaf->child;
+			leaf->child  = (BNode **)new;
+			++new->page->age;
+			_insert_fixup(btree, leaf, key, new, stack, depth);
+		}
+		++btree->tuple;
+	} else {
+		alert("拥有该关键值的数据已存在 :(");
 		return Bad;
 	}
 	pthread_mutex_unlock(&btree->lock);

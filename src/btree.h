@@ -61,6 +61,7 @@ typedef struct
 	Pager        pager;
 
 	pthread_mutex_t lock;
+
 	uint32_t   tuple;
 
 	int8_t     (*compare)(const void *, const void *, const uint32_t);
@@ -70,7 +71,7 @@ BTree* newBTree();
 status free_btree(BTree *btree);
 status init_btree(BTree *btree, uint16_t key_len, uint16_t total,
 									int8_t (*compare)(const void *, const void *, const uint32_t));
-status insert_data(BTree *btree, const void *val);
+status insert_data(void *tree, const void *val);
 status delete_data(BTree *btree, const void *key);
 
 #endif /* _BTREE_H_ */
