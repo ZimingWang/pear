@@ -48,9 +48,9 @@ static Page* newPage(const uint16_t page_size)
 
 static status _free_page(Page *page, const uint16_t page_size)
 {
-	if (page->dirty)
-		if (_write_page(page, page_size) != Ok)
-			return Bad;
+	// if (page->dirty)
+		// if (_write_page(page, page_size) != Ok)
+			// return Bad;
 
 	if (page->data)
 		free(page->data);

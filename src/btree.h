@@ -72,6 +72,6 @@ status free_btree(BTree *btree);
 status init_btree(BTree *btree, uint16_t key_len, uint16_t total,
 									int8_t (*compare)(const void *, const void *, const uint32_t));
 status insert_data(void *tree, const void *val);
-status delete_data(BTree *btree, const void *key);
+status delete_data(void *tree, const void *key);
 
 #endif /* _BTREE_H_ */

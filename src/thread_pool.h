@@ -15,7 +15,7 @@
 #include "util.h"
 #include "error.h"
 
-#define  THREAD_NUM      3
+#define  THREAD_NUM      4
 #define  JOB_QUEUE_SIZE	 64
 
 typedef struct Job

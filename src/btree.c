@@ -397,10 +397,12 @@ static status _delete_fixup(BTree *btree, BNode *parent, Pair *stack, uint8_t de
 	return Ok;
 }
 
-status delete_data(BTree *btree, const void *key)
+status delete_data(void *tree, const void *key)
 {
+	BTree *btree = (BTree *)tree;
 	uint8_t depth = 0;
 	Pair stack[MAX_DEPTH];
+	pthread_mutex_lock(&btree->lock);
 
 	BNode *leaf = _find_leaf(btree, key, stack, &depth);
 
@@ -427,6 +429,7 @@ status delete_data(BTree *btree, const void *key)
 		alert("不存在该关键值 :(");
 		return Bad;
 	}
+	pthread_mutex_unlock(&btree->lock);
 	return Ok;
 }
 

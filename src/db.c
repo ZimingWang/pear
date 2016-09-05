@@ -82,7 +82,7 @@ status put(DB *db, const void **val, const uint16_t *len, const uint8_t count)
 	if (!verify_attributes(db->table, val, len, count, buf))
 		alert("插入数据与表属性不匹配 :(");
 
-	put_job(insert_data, (void *)db->btree, buf);
+	put_job(insert_data, db->btree, buf);
 
 	// insert_data(db->btree, buf);
 	return Ok;
@@ -91,11 +91,15 @@ status put(DB *db, const void **val, const uint16_t *len, const uint8_t count)
 status drop(DB *db, const void *key, const uint16_t len)
 {
 	if (!db->table) warning("数据库表不存在 :(");
-	if (!verify_key(db->table, len)) {
+	if (!verify_key(db->table, len))
 		alert("关键值属性错误 :(");
-		return Bad;
-	}
-	delete_data(db->btree, key);
+
+	char *buf = (char *)malloc(db->btree->key_len);
+	memcpy(buf, key, len);
+	put_job(delete_data, db->btree, buf);
+
+	// delete_data(db->btree, key);
+
 	return Ok;
 }
 
