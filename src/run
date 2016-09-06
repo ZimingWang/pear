@@ -1,8 +1,8 @@
 #! /bin/sh
 rm -rf ../my
 
-put=10
-drop=10
+put=1
+drop=1
 
 beg1=1
 end1=`echo "$beg1+$put" | bc`
@@ -16,8 +16,8 @@ beg=$(date +%s.%N)
 end=$(date +%s.%N)
 
 t=`echo "$end-$beg" | bc`
-gprof pear ../my/gmon.out -p > pinfo
-sed -n -e 4,19p -s pinfo
-rm ../my/gmon.out pinfo
+# gprof pear ../my/gmon.out -p > pinfo
+# sed -n -e 4,19p -s pinfo
+# rm ../my/gmon.out pinfo
 
 echo $t

@@ -53,6 +53,8 @@ Page*  fresh_page(Pager *pager);
 Page*  get_page(Pager *pager, uint32_t index);
 void	 insert_to_page(Page *page, const uint8_t end, const uint8_t pos,
 											const void *val, const uint16_t len);
+void insert_high_key(Page *page, const uint8_t max, const uint8_t pos,
+	const void *key, const uint8_t key_len, const uint16_t len);
 void 	 split_page(Page *pdst, Page *psrc, const uint8_t beg, const uint8_t end,
 									const uint16_t len);
 void   delete_from_page(Page *page, const uint8_t max_key, const uint8_t pos,

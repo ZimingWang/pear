@@ -101,6 +101,7 @@ status init_pager(Pager *pager, uint16_t page_size)
 
 status free_pager(Pager *pager)
 {
+	printf("%d\n", pager->data_page_num);
 	for (uint16_t i = 0; i != BUCKET_SIZE; ++i)
 		if (_free_bucket(&pager->bucket[i], pager->page_size) != Ok)
 			return Bad;
@@ -187,6 +188,20 @@ void insert_to_page(Page *page, const uint8_t max, const uint8_t pos,
 	*(uint8_t *)(data + pos) = end;
 	data += max + (uint32_t)end * len;
 	memcpy(data, val, len);
+	++*(uint8_t *)(page->data + 0);
+	page->dirty = true;
+}
+
+void insert_high_key(Page *page, const uint8_t max, const uint8_t pos,
+	const void *key, const uint8_t key_len, const uint16_t len)
+{
+	void *data = page->data + 1;
+	assert(max > pos);
+	memmove(data + pos + 1, data + pos, (uint32_t)(max - pos - 1));
+	uint8_t end = *(uint8_t *)(data - 1);
+	*(uint8_t *)(data + pos) = end;
+	data += max + (uint32_t)end * len;
+	memcpy(data, key, key_len);
 	++*(uint8_t *)(page->data + 0);
 	page->dirty = true;
 }

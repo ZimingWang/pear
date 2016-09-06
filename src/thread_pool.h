@@ -33,7 +33,7 @@ typedef struct
 	int8_t           front;				// 队列头部
 	int8_t           avail_back;	// 队列尾部
 	int8_t           work_back;		// 队列尾部
-	pthread_t       *threads;			// 工作线程数
+	pthread_t       *threads;			// 工作线程
 	pthread_mutex_t  lock;				// 队列锁
 	pthread_cond_t   ready;				// 条件变量
 	pthread_cond_t   empty;				// 条件变量

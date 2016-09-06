@@ -10,10 +10,41 @@
 #ifndef _LOCK_H_
 #define _LOCK_H_
 
+#include <pthread.h>
+
+#include "error.h"
+
+#define TABLE_SIZE          32
+#define MAX_LOCK_PER_QUEUE  8
+
+typedef enum { FREE, LOCK } lock_status;
+
+typedef struct Lock Lock;
+
+struct Lock
+{
+	uint64_t         id;
+	pthread_mutex_t  lock;
+	lock_status      status;
+	Lock            *next;
+};
+
 typedef struct
 {
-	void *ptr;
-}LockName;
+	pthread_mutex_t  lock;
+	Lock            *head;
+	Lock            *tail;
+	uint8_t          len;
+}HashBucket;
 
+typedef struct
+{
+	HashBucket *entry;
+}LockHashTable;
+
+status init_lock_hash_table();
+status free_lock_hash_table();
+status lock(const void *ptr);
+status unlock(const void *ptr);
 
 #endif /* _LOCK_H_ */

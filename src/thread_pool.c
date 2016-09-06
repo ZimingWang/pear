@@ -109,7 +109,6 @@ static void* _run_job(void *arg)
 {
 	int8_t seq;
 	Job *job;
-
 	for (;;) {
 		pthread_mutex_lock(&queue.lock);
 		if (queue.work[queue.work_back] < 0)
@@ -145,13 +144,11 @@ static void* _run_job(void *arg)
 
 void put_job(status (*fun)(void *, const void *), void *arg1, void *arg2)
 {
-	int8_t seq;
-	Job *job;
 	pthread_mutex_lock(&queue.lock);
 	while (queue.avail[queue.front] < 0)
 		pthread_cond_wait(&queue.empty, &queue.lock);
-	seq = queue.avail[queue.front];
-	job = &queue.base[seq];
+	int8_t seq = queue.avail[queue.front];
+	Job *job = &queue.base[seq];
 	job->fun = fun;
 	job->arg1 = arg1;
 	job->arg2 = arg2;
