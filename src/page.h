@@ -10,6 +10,8 @@
 #ifndef _PAGE_H_
 #define _PAGE_H_
 
+#include <pthread.h>
+
 #include "error.h"
 #include "util.h"
 
@@ -40,11 +42,12 @@ typedef struct
 
 typedef struct
 {
-	int 		  	*data_fd;
-	uint32_t		 data_page_num;
-	uint32_t   	 data_file_num;
-	uint16_t 		 page_size;
-	PageBucket	 bucket[BUCKET_SIZE];
+	int            *data_fd;
+	uint32_t        data_page_num;
+	uint32_t        data_file_num;
+	uint16_t        page_size;
+	PageBucket      bucket[BUCKET_SIZE];
+	pthread_mutex_t lock;
 }Pager;
 
 status init_pager(Pager *pager, uint16_t page_size);

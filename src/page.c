@@ -95,16 +95,21 @@ status init_pager(Pager *pager, uint16_t page_size)
 	for (uint16_t i = 0; i != BUCKET_SIZE; ++i)
 		if (_init_bucket(&pager->bucket[i], 16, page_size) != Ok)
 			return Bad;
+	if (pthread_mutex_init(&pager->lock, NULL))
+		warning("页面池互斥量初始化失败 :(");
 	pager->page_size = page_size;
 	return Ok;
 }
 
 status free_pager(Pager *pager)
 {
-	printf("%d\n", pager->data_page_num);
+	// printf("%d\n", pager->data_page_num);
 	for (uint16_t i = 0; i != BUCKET_SIZE; ++i)
 		if (_free_bucket(&pager->bucket[i], pager->page_size) != Ok)
 			return Bad;
+
+	if (pthread_mutex_destroy(&pager->lock))
+		warning("页面池互斥量销毁失败 :(");
 
 	if (pager->data_fd)
 		free(pager->data_fd);
@@ -152,6 +157,7 @@ static Page* _get_page(Pager *pager, uint32_t bucket_index, int fd, uint32_t ind
 Page *fresh_page(Pager *pager)
 {
 	uint32_t bucket_index = pager->data_page_num % BUCKET_SIZE;
+	pthread_mutex_lock(&pager->lock);
 	uint32_t index = pager->data_page_num++;
 
 	if ((pager->data_page_num / MAX_PAGE_PER_FILE) == pager->data_file_num) {
@@ -166,6 +172,8 @@ Page *fresh_page(Pager *pager)
 		if (pager->data_fd < 0) return NULL;
 		++pager->data_file_num;
 	}
+	pthread_mutex_unlock(&pager->lock);
+
 	int fd = pager->data_fd[index / MAX_PAGE_PER_FILE];
 
 	return _get_page(pager, bucket_index, fd, index, true);

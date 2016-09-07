@@ -12,6 +12,7 @@
 #include <assert.h>
 
 #include "btree.h"
+#include "lock.h"
 
 #define PTR(ptr, index, len) (((void *)ptr) + (((uint32_t)index) * len))
 #define LEN(beg, end, len) 	 ((((uint32_t)end) - beg) * len)
@@ -64,12 +65,11 @@ status init_btree(BTree 	*btree, uint16_t key_len, uint16_t total,
 	if (init_pager(&btree->pager, 4096) != Ok)
 		return Bad;
 
-	if ((total + 1) <= 16 || (total + 1) >= 2048) {
-		free_pager(&btree->pager);
-		fatal("单行表数据不满足限制: 大于16字节小于2KB :(");
-	}
+	int n = ((btree->pager.page_size - 1 - key_len) / (total + 1)) + 1;
+	if (n < 2 || n >= 256)
+		warning("不支持此数据长度 :(");
 
-	btree->n = ((btree->pager.page_size - 1) / (total + 1)) + 1;
+	btree->n = n;
 	btree->key_len  = key_len;
 
 	btree->min_key  = ((btree->n - 1) + ((btree->n - 1) % 2)) >> 1;
@@ -124,25 +124,6 @@ static uint8_t _get_descend_index(const BNode *curr, const void *key, const uint
 	return mid;
 }
 
-static BNode* _find_leaf(BTree *btree, const void *key, Pair *stack, uint8_t *depth)
-{
-	BNode *curr = btree->root;
-	for (; curr->tag != LEAF;) {
-		uint8_t index = _get_descend_index(curr, key, btree->key_len, btree->compare);
-		stack[*depth].node = curr;
-		stack[*depth].index = index;
-		++*depth;
-		curr = curr->child[index];
-	}
-
-	if (curr->page->index != curr->index)
-		curr->page = get_page(&btree->pager, curr->index);
-	else
-		++curr->page->age;
-
-	return curr;
-}
-
 static uint8_t _get_index(const void *data, const uint16_t data_size, const uint8_t offset,
 	const void *key, const uint8_t len,
 	int8_t (*compare)(const void *, const void *, const uint32_t), bool insert)
@@ -163,6 +144,71 @@ static uint8_t _get_index(const void *data, const uint16_t data_size, const uint
 	}
 	if (insert) return mid;
 	else				return 0xFF;
+}
+
+BNode* _move_right(BTree *btree, BNode *leaf, const void *val, uint8_t *pos)
+{
+	while (1) {
+		*pos = _get_index(leaf->page->data, btree->data_len, btree->max_key,
+											val, btree->key_len, btree->compare, true);
+		if (*pos == 0xFF) return NULL;
+		if (KEY(leaf) == *pos && leaf->child && (btree->compare(PTR(leaf->page->data+btree->n, \
+				btree->max_key, btree->data_len), val, btree->key_len) <= 0)) {
+			lock(leaf->child);
+			unlock(leaf);
+			leaf = (BNode *)leaf->child;
+		} else {
+			break;
+		}
+	}
+	return leaf;
+}
+
+static BNode* _find_insert_leaf(BTree *btree, const void *key, Pair *stack, uint8_t *depth)
+{
+	BNode *curr = btree->root;
+	uint8_t index;
+	for (; curr->tag != LEAF;) {
+		while (1) {
+			index = _get_descend_index(curr, key, btree->key_len, btree->compare);
+			if (index == curr->kcount && curr->child[btree->max_node] &&
+				(btree->compare(PTR(curr->key, btree->n, btree->key_len), key, btree->key_len) <= 0))
+				curr = curr->child[btree->max_node];
+			else
+				break;
+		}
+		stack[*depth].node = curr;
+		stack[*depth].index = index;
+		++*depth;
+		curr = curr->child[index];
+	}
+	lock(curr);
+	if (curr->page->index != curr->index)
+		curr->page = get_page(&btree->pager, curr->index);
+	else
+		++curr->page->age;
+
+	return curr;
+}
+
+static BNode* _find_delete_leaf(BTree *btree, const void *key, Pair *stack, uint8_t *depth)
+{
+	BNode *curr = btree->root;
+	uint8_t index;
+	for (; curr->tag != LEAF;) {
+		index = _get_descend_index(curr, key, btree->key_len, btree->compare);
+		stack[*depth].node = curr;
+		stack[*depth].index = index;
+		++*depth;
+		curr = curr->child[index];
+	}
+
+	if (curr->page->index != curr->index)
+		curr->page = get_page(&btree->pager, curr->index);
+	else
+		++curr->page->age;
+
+	return curr;
 }
 
 static void _insert_key(BNode *bnode, const uint8_t pos, const void *key, const uint8_t len)
@@ -195,7 +241,7 @@ static void _part_key(BNode *dst, BNode *src, const uint8_t beg, const uint8_t e
 {
 	memcpy(PTR(dst->key, 0, len), PTR(src->key, beg, len), LEN(beg, end, len));
 	dst->kcount = end - beg;
-	src->kcount = beg;
+	src->kcount = beg - 1;
 }
 
 static void _part_child(BNode *dst, BNode *src, const uint8_t beg, const uint8_t end)
@@ -210,48 +256,6 @@ static void _part_half(BNode *dst, BNode *src, const uint8_t beg, const uint8_t 
 {
 	_part_key(dst, src, beg, end, len);
 	_part_child(dst, src, beg, end + 1);
-}
-
-static status _insert_fixup(BTree *btree, BNode *left, char *key, BNode *right,
-	Pair *stack, uint8_t depth)
-{
-	BNode *bnode;
-	uint8_t index;
-	if (btree->root != left) {
-		bnode = stack[--depth].node;
-		index = stack[depth].index;
-	} else {
-		bnode = newBNode(btree, NODE);
-		if (!bnode) return Fatal;
-		bnode->child[0] = left;
-		++bnode->ncount;
-		btree->root = bnode;
-		index = 0;
-	}
-	_insert_pair(bnode, index, right, key, btree->key_len);
-
-	while (bnode->kcount == btree->n) {
-		left  = bnode;
-		right = newBNode(btree, NODE);
-		if (!right) return Fatal;
-		if (bnode != btree->root) {
-			bnode = stack[--depth].node;
-			index = stack[depth].index;
-		} else {
-			bnode = newBNode(btree, NODE);
-			if (!bnode) return Fatal;
-			bnode->child[0] = left;
-			++bnode->ncount;
-			btree->root = bnode;
-			index = 0;
-		}
-		_part_half(right, left, btree->min_key + 1, btree->n, btree->key_len);
-		memcpy(key, PTR(left->key, btree->min_key, btree->key_len), btree->key_len);
-		right->child[btree->max_node] = left->child[btree->max_node];
-		left->child[btree->max_node] = right;
-		_insert_pair(bnode, index, right, key, btree->key_len);
-	}
-	return Ok;
 }
 
 static status _merge_or_redis_leaf(BTree *btree, BNode *parent, const uint8_t pos,
@@ -356,6 +360,9 @@ static status _merge_or_redis_node(BTree *btree, BNode *parent, const uint8_t in
 	*merge = (left->ncount + right->ncount) < btree->max_node;
 	if (*merge) {
 		_merge_half(left, mid, right, btree->key_len);
+		memcpy(PTR(left->key, btree->n, btree->key_len),
+					 PTR(right->key, btree->n, btree->key_len), btree->key_len);
+		left->child[btree->max_node] = right->child[btree->max_node];
 	} else {
 		if (index) {
 			memcpy(key, PTR(left->key, --left->kcount, btree->key_len), btree->key_len);
@@ -418,12 +425,11 @@ static status _merge_or_redis_delete(BTree *btree, BNode *leaf, const uint8_t po
 status delete_data(void *tree, const void *key)
 {
 	BTree *btree = (BTree *)tree;
+	pthread_mutex_lock(&btree->lock);
 	uint8_t depth = 0;
 	Pair stack[MAX_DEPTH];
 
-	pthread_mutex_lock(&btree->lock);
-
-	BNode *leaf = _find_leaf(btree, key, stack, &depth);
+	BNode *leaf = _find_delete_leaf(btree, key, stack, &depth);
 
 	uint8_t pos = _get_index(	leaf->page->data, btree->data_len, btree->max_key,
 														key, btree->key_len, btree->compare, false);
@@ -435,20 +441,62 @@ status delete_data(void *tree, const void *key)
 		--btree->tuple;
 	} else {
 		alert("不存在该关键值 :(");
+		exit(-1);
 		return Bad;
 	}
 	pthread_mutex_unlock(&btree->lock);
 	return Ok;
 }
 
-BNode* _move_right(BNode *leaf)
+static status _insert_fixup(BTree *btree, BNode *left, char *key, BNode *right,
+	Pair *stack, uint8_t depth)
 {
-	printf("error when moving right :(");
-	exit(-1);
-	return NULL;
+	BNode *bnode;
+	uint8_t index;
+	if (btree->root != left) {
+		bnode = stack[--depth].node;
+		index = stack[depth].index;
+	} else {
+		bnode = newBNode(btree, NODE);
+		if (!bnode) return Fatal;
+		bnode->child[0] = left;
+		++bnode->ncount;
+		btree->root = bnode;
+		index = 0;
+	}
+	lock(bnode);
+	_insert_pair(bnode, index, right, key, btree->key_len);
+	unlock(left);
+
+	while (bnode->kcount == btree->n) {
+		left  = bnode;
+		right = newBNode(btree, NODE);
+		if (bnode != btree->root) {
+			bnode = stack[--depth].node;
+			index = stack[depth].index;
+		} else {
+			bnode = newBNode(btree, NODE);
+			bnode->child[0] = left;
+			++bnode->ncount;
+			btree->root = bnode;
+			index = 0;
+		}
+		lock(bnode);
+		_part_half(right, left, btree->min_key + 1, btree->n, btree->key_len);
+		memcpy(key, PTR(left->key, btree->min_key, btree->key_len), btree->key_len);
+		memcpy(PTR(right->key, btree->n, btree->key_len),
+					 PTR(left->key, btree->n, btree->key_len), btree->key_len);
+		memcpy(PTR(left->key, btree->n, btree->key_len), key, btree->key_len);
+		right->child[btree->max_node] = left->child[btree->max_node];
+		left->child[btree->max_node] = right;
+		unlock(left);
+		_insert_pair(bnode, index, right, key, btree->key_len);
+	}
+	unlock(bnode);
+	return Ok;
 }
 
-status _split_and_insert(BTree *btree, BNode *leaf, uint8_t pos, const void *val,
+static status _split_and_insert(BTree *btree, BNode *leaf, uint8_t pos, const void *val,
 	Pair *stack, uint8_t depth)
 {
 	char key[btree->key_len];
@@ -466,7 +514,9 @@ status _split_and_insert(BTree *btree, BNode *leaf, uint8_t pos, const void *val
 		memcpy(key, new->page->data + btree->n, btree->key_len);
 		insert_to_page(leaf->page, btree->max_key, pos, val, btree->data_len);
 	}
-	insert_high_key(leaf->page, btree->max_key, KEY(leaf), key, btree->key_len, btree->data_len);
+	memcpy(PTR(new->page->data+btree->n, btree->max_key, btree->data_len),
+				 PTR(leaf->page->data+btree->n, btree->max_key, btree->data_len), btree->key_len);
+	memcpy(PTR(leaf->page->data+btree->n, btree->max_key, btree->data_len), key, btree->key_len);
 	new->child  = leaf->child;
 	leaf->child = (BNode **)new;
 	++new->page->age;
@@ -476,26 +526,27 @@ status _split_and_insert(BTree *btree, BNode *leaf, uint8_t pos, const void *val
 
 status insert_data(void *tree, const void *val)
 {
+	// puts(val);
 	BTree *btree = (BTree *)tree;
 	uint8_t depth = 0;
 	Pair stack[MAX_DEPTH];
-
-	pthread_mutex_lock(&btree->lock);
-
-	BNode *leaf = _find_leaf(btree, val, stack, &depth);
-	uint8_t pos = _get_index(	leaf->page->data, btree->data_len, btree->max_key,
-														val, btree->key_len, btree->compare, true);
+	BNode *leaf = _find_insert_leaf(btree, val, stack, &depth);
+	uint8_t pos;
+	leaf = _move_right(btree, leaf, val, &pos);
 	if (pos != 0xFF) {
-		if (KEY(leaf) == pos && leaf->child) leaf = _move_right(leaf);
-		if (KEY(leaf) != btree->max_key)
+		if (KEY(leaf) != btree->max_key) {
 			insert_to_page(leaf->page, btree->max_key, pos, val, btree->data_len);
-		else
+			unlock(leaf);
+		} else {
 			_split_and_insert(btree, leaf, pos, val, stack, depth);
-		++btree->tuple;
+		}
 	} else {
+		unlock(leaf);
 		alert("拥有该关键值的数据已存在 :(");
 		return Bad;
 	}
+	pthread_mutex_lock(&btree->lock);
+	++btree->tuple;
 	pthread_mutex_unlock(&btree->lock);
 	return Ok;
 }

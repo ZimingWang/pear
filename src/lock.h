@@ -14,7 +14,7 @@
 
 #include "error.h"
 
-#define TABLE_SIZE          32
+#define TABLE_SIZE          31
 #define MAX_LOCK_PER_QUEUE  8
 
 typedef enum { FREE, LOCK } lock_status;
@@ -39,11 +39,13 @@ typedef struct
 
 typedef struct
 {
-	HashBucket *entry;
+	HashBucket     *entry;
+	pthread_mutex_t lock;
 }LockHashTable;
 
 status init_lock_hash_table();
 status free_lock_hash_table();
+void   print_hash_lock_table_status();
 status lock(const void *ptr);
 status unlock(const void *ptr);
 

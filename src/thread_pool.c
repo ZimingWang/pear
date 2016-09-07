@@ -47,7 +47,7 @@ status init_job_queue()
 	if (!queue.avail || !queue.work)
 		warning("工作队列参数初始化失败 :(");
 
-	for (size_t i = 0; i < JOB_QUEUE_SIZE; ++i) {
+	for (uint8_t i = 0; i < JOB_QUEUE_SIZE; ++i) {
 		queue.avail[i] = i;
 		queue.work[i]  = -1;
 	}
@@ -149,7 +149,7 @@ void put_job(status (*fun)(void *, const void *), void *arg1, void *arg2)
 		pthread_cond_wait(&queue.empty, &queue.lock);
 	int8_t seq = queue.avail[queue.front];
 	Job *job = &queue.base[seq];
-	job->fun = fun;
+	job->fun  = fun;
 	job->arg1 = arg1;
 	job->arg2 = arg2;
 	queue.avail[queue.front] 	= -1;

@@ -21,15 +21,16 @@
 
 * Version 0.1.0
 	- single-thread insert and delete
-	- Insertion speed			``` 328000 tuples/second ```
-	- Deletion speed			``` 204000 tuples/second ```
+		+ Insertion speed			``` 328000 tuples/second ```
+		+ Deletion speed			``` 204000 tuples/second ```
 
 * Version 0.1.0
-	- implement high performance thread pool that only use a few fixed memory(work queue uses remap to insure the job position that is freed earlier will be assigned a next job earlier)
+	- implement thread pool that only use a few fixed memory(work queue uses remap to insure the job position that is freed earlier will be assigned a next job earlier)
 	- fake multi-thread insertion and deletion
 
 ###TODO
 - [x] insert, select, delete operation
 - [x] thread pool
+- [ ] lock manager
 - [ ] memory pool
 - [ ] concurrent index

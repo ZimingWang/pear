@@ -13,6 +13,7 @@
 
 #include "parser.h"
 #include "thread_pool.h"
+#include "lock.h"
 
 status init_test(const char *dir)
 {
@@ -55,6 +56,7 @@ int main(int argc, char **argv)
 	strcat(dir, "/pear_syn/");
 
 	init_job_queue();
+	init_lock_hash_table();
 	init_parser();
 
 	if (init_test(dir) != Fatal) {
@@ -63,6 +65,7 @@ int main(int argc, char **argv)
 	}
 
 	free_job_queue();
+	free_lock_hash_table();
 	free_parser();
 
 	return 0;
