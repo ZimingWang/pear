@@ -1,8 +1,7 @@
 #! /bin/sh
-rm -rf ../my
 
 put=1
-drop=0
+drop=1
 
 beg1=1
 end1=`echo "$beg1+$put" | bc`
@@ -11,9 +10,16 @@ end2=`echo "$beg2+$drop" | bc`
 
 make
 
-beg=$(date +%s.%N)
-./pear $beg1 $end1 $beg2 $end2
-end=$(date +%s.%N)
+i=0
+count=10
+# beg=$(date +%s.%N)
+while $(($count - $i))
+do
+	rm -rf ../my
+	./pear $beg1 $end1 $beg2 $end2
+	++$i
+done
+# end=$(date +%s.%N)
 
 t=`echo "$end-$beg" | bc`
 # gprof pear ../my/gmon.out -p > pinfo

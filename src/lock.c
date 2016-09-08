@@ -67,7 +67,7 @@ status _free_hash_bucket(HashBucket *bucket)
 
 status free_lock_hash_table()
 {
-	print_hash_lock_table_status();
+	// print_hash_lock_table_status();
 	if (hashtable.entry) {
 		for (uint8_t i = 0; i != TABLE_SIZE; ++i)
 			if (_free_hash_bucket(&hashtable.entry[i]) != Ok)
@@ -115,7 +115,6 @@ static status _lock(uint64_t id, HashBucket *bucket)
 			lock = bucket->head;
 			++bucket->len;
 		} else if (bucket->len < MAX_LOCK_PER_QUEUE) {
-			printf("tail %ld %ld\n", lock->id, id);
 			lock = newLock(id);
 			if (!lock) return Bad;
 			bucket->tail->next = lock;
@@ -127,10 +126,9 @@ static status _lock(uint64_t id, HashBucket *bucket)
 		}
 	}
 
-	if (lock->id != id) lock->id = id;
 	pthread_mutex_unlock(&bucket->lock);
 	pthread_mutex_lock(&lock->lock);
-	// puts("lock");
+	if (lock->id != id) lock->id = id;
 	lock->status = LOCK;
 
 	return Ok;
@@ -155,14 +153,11 @@ static status _unlock(uint64_t id, HashBucket *bucket)
 	while (lock) {
 		if (lock->id == id && lock->status == LOCK)
 			break;
-		printf("compare %ld %ld\n", lock->id, id);
-		// printf("lock status %s\n", (lock->status == FREE ? "free" : "lock"));
 		lock = lock->next;
 	}
 
 	if (!lock) {
-		printf("id = %ld  %d\n", id, lock_count);
-		alert("解锁失败 :(");
+		alert("解锁 %ld 失败 :(", id);
 		print_hash_lock_table_status();
 		exit(-1);
 	}
@@ -170,7 +165,6 @@ static status _unlock(uint64_t id, HashBucket *bucket)
 	pthread_mutex_unlock(&bucket->lock);
 	lock->status = FREE;
 	pthread_mutex_unlock(&lock->lock);
-	// puts("unlock");
 	return Ok;
 }
 

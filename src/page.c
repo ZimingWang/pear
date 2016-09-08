@@ -200,20 +200,6 @@ void insert_to_page(Page *page, const uint8_t max, const uint8_t pos,
 	page->dirty = true;
 }
 
-void insert_high_key(Page *page, const uint8_t max, const uint8_t pos,
-	const void *key, const uint8_t key_len, const uint16_t len)
-{
-	void *data = page->data + 1;
-	assert(max > pos);
-	memmove(data + pos + 1, data + pos, (uint32_t)(max - pos - 1));
-	uint8_t end = *(uint8_t *)(data - 1);
-	*(uint8_t *)(data + pos) = end;
-	data += max + (uint32_t)end * len;
-	memcpy(data, key, key_len);
-	++*(uint8_t *)(page->data + 0);
-	page->dirty = true;
-}
-
 static void _fill_empty(uint8_t *start, const uint8_t emp,
 	uint8_t *dst, uint8_t *src, const uint16_t len, uint8_t *pos,
 	const uint8_t end)
@@ -378,7 +364,9 @@ void scan_page(const Page *page, const uint8_t off, const uint16_t total, const 
 		snprintf(buf + len, 5, "%s", "     ");
 		len += 4;
 	}
+	snprintf(buf + len, key_len, "%s", (char *)(page->data + off + (uint32_t)(off - 1) * total));
+	len += key_len - 1;
 	buf[len++] = '\0';
 	puts(buf);
-	getchar();
+	// getchar();
 }
