@@ -243,13 +243,21 @@ void split_page(Page *pdst, Page *psrc, const uint8_t beg, const uint8_t end,
 }
 
 void delete_from_page(Page *page, const uint8_t end, const uint8_t pos, const void *key,
-	const uint16_t len)
+	const uint16_t len, const uint8_t key_len)
 {
 	uint8_t *index = (uint8_t *)(page->data + 1);
 	uint8_t num = --*(uint8_t *)(page->data + 0);
 	uint8_t idx  = index[pos];
 
 	void *data = page->data + end;
+
+	if (memcmp(data + (uint32_t)idx * len, key, key_len)) {
+		puts(data + (uint32_t)idx * len);
+		puts(key);
+		scan_page(page, end, len, key_len);
+		alert("error !!! :(");
+		exit(-1);
+	}
 
 	if (idx != num)
 		memcpy(data + (uint32_t)idx * len, data + (uint32_t)num * len, len);

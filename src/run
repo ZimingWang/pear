@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 put=1
 drop=1
@@ -10,20 +10,18 @@ end2=`echo "$beg2+$drop" | bc`
 
 make
 
-i=0
-count=10
+count=1
 # beg=$(date +%s.%N)
-while $(($count - $i))
+for ((i = 0; i < $count; ++i))
 do
 	rm -rf ../my
 	./pear $beg1 $end1 $beg2 $end2
-	++$i
 done
 # end=$(date +%s.%N)
 
-t=`echo "$end-$beg" | bc`
+# t=`echo "$end-$beg" | bc`
 # gprof pear ../my/gmon.out -p > pinfo
 # sed -n -e 4,19p -s pinfo
 # rm ../my/gmon.out pinfo
 
-echo $t
+# echo $t

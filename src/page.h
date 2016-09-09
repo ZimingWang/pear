@@ -59,7 +59,7 @@ void	 insert_to_page(Page *page, const uint8_t end, const uint8_t pos,
 void 	 split_page(Page *pdst, Page *psrc, const uint8_t beg, const uint8_t end,
 									const uint16_t len);
 void   delete_from_page(Page *page, const uint8_t max_key, const uint8_t pos,
-												const void *key, const uint16_t len);
+												const void *key, const uint16_t len, const uint8_t key_len);
 void 	 merge_page(Page *left, Page *right, const uint8_t max, const uint16_t len);
 void   move_last_to_right(Page *left, Page *right, const uint8_t pos, const uint8_t end,
 													const uint16_t len);

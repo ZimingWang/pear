@@ -8,6 +8,7 @@
 **/
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "lock.h"
 
@@ -101,10 +102,7 @@ static status _lock(uint64_t id, HashBucket *bucket)
 
 	Lock *lock = bucket->head;
 	while (lock) {
-		if (lock->id == id)
-			break;
-		if (lock->status == FREE)
-			break;
+		if (lock->id == id) break;
 		lock = lock->next;
 	}
 	if (!lock) {
@@ -121,11 +119,14 @@ static status _lock(uint64_t id, HashBucket *bucket)
 			bucket->tail = lock;
 			++bucket->len;
 		} else {
-			warning("not implemented :(");
-			exit(-1);
+			lock = bucket->head;
+			while (lock) {
+				if (lock->status == FREE) break;
+				lock = lock->next;
+			}
 		}
 	}
-
+	assert(lock);
 	pthread_mutex_unlock(&bucket->lock);
 	pthread_mutex_lock(&lock->lock);
 	if (lock->id != id) lock->id = id;
