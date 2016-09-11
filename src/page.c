@@ -156,8 +156,8 @@ static Page* _get_page(Pager *pager, uint32_t bucket_index, int fd, uint32_t ind
 
 Page *fresh_page(Pager *pager)
 {
-	uint32_t bucket_index = pager->data_page_num % BUCKET_SIZE;
 	pthread_mutex_lock(&pager->lock);
+	uint32_t bucket_index = pager->data_page_num % BUCKET_SIZE;
 	uint32_t index = pager->data_page_num++;
 
 	if ((pager->data_page_num / MAX_PAGE_PER_FILE) == pager->data_file_num) {
@@ -172,11 +172,13 @@ Page *fresh_page(Pager *pager)
 		if (pager->data_fd < 0) return NULL;
 		++pager->data_file_num;
 	}
-	pthread_mutex_unlock(&pager->lock);
 
 	int fd = pager->data_fd[index / MAX_PAGE_PER_FILE];
 
-	return _get_page(pager, bucket_index, fd, index, true);
+	Page *page = _get_page(pager, bucket_index, fd, index, true);
+
+	pthread_mutex_unlock(&pager->lock);
+	return page;
 }
 
 Page* get_page(Pager *pager, uint32_t index)

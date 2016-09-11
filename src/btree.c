@@ -145,13 +145,7 @@ static int16_t _get_index(const void *data, const uint16_t data_size, const uint
 	if (insert) {
 		return mid;
 	} else {
-		// printf("mid %d high %d\n", mid, high);
-		if (mid == high) {
-			// uint8_t index = *(uint8_t *)(data + mid);
-			// printf("%s   %s\n", (char *)PTR(data + offset, index, data_size),
-													// (char *)key);
-			return high;
-		}
+		if (mid == high) return high;
 		return -1;
 	}
 }
@@ -413,22 +407,22 @@ static status _merge_or_redis_delete(BTree *btree, BNode *leaf, const void *val,
 	return Ok;
 }
 
-static int number = 0;
+// static int number = 0;
 
 status delete_data(void *tree, const void *key)
 {
 	BTree *btree = (BTree *)tree;
-	if (!number) {
-		for (uint8_t i = 0; i != btree->root->kcount; ++i) {
-			puts(btree->root->key + (uint32_t)btree->key_len * i);
-		}
-		BNode *leaf = btree->root->child[0];
-		while (leaf) {
-			scan_page(leaf->page, btree->n, btree->data_len, btree->key_len);
-			leaf = (BNode *)leaf->child;
-		}
-		number = 1;
-	}
+	// if (!number) {
+	// 	for (uint8_t i = 0; i != btree->root->kcount; ++i) {
+	// 		puts(btree->root->key + (uint32_t)btree->key_len * i);
+	// 	}
+	// 	BNode *leaf = btree->root->child[0];
+	// 	while (leaf) {
+	// 		scan_page(leaf->page, btree->n, btree->data_len, btree->key_len);
+	// 		leaf = (BNode *)leaf->child;
+	// 	}
+	// 	number = 1;
+	// }
 	uint8_t depth = 0;
 	Pair stack[MAX_DEPTH];
 
@@ -511,7 +505,7 @@ static status _split_and_insert(BTree *btree, BNode *leaf, uint8_t pos, const vo
 	char key[btree->key_len];
 	leaf->page->status = WRITE;
 	BNode *new = newBNode(btree, LEAF);
-	printf("%d %d\n", leaf->index, new->index);
+	// printf("%d %d\n", leaf->index, new->index);
 	leaf->page->status = false;
 	if (pos >= btree->min_key) {
 		split_page(new->page, leaf->page, btree->min_key, btree->n, btree->data_len);
@@ -527,6 +521,8 @@ static status _split_and_insert(BTree *btree, BNode *leaf, uint8_t pos, const vo
 	memcpy(PTR(new->page->data+btree->n, btree->max_key, btree->data_len),
 				 PTR(leaf->page->data+btree->n, btree->max_key, btree->data_len), btree->key_len);
 	memcpy(PTR(leaf->page->data+btree->n, btree->max_key, btree->data_len), key, btree->key_len);
+	// scan_page(leaf->page, btree->n, btree->data_len, btree->key_len);
+	// scan_page(new->page, btree->n, btree->data_len, btree->key_len);
 	new->child  = leaf->child;
 	leaf->child = (BNode **)new;
 	++new->page->age;
