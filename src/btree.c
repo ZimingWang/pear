@@ -159,18 +159,22 @@ static BNode* _move_right(BTree *btree, BNode *leaf, const void *val, int16_t *p
 		if (*pos == -1) return leaf;
 		if (KEY(leaf) == *pos && leaf->child && (btree->compare(PTR(leaf->page->data+btree->n, \
 				btree->max_key, btree->data_len), val, btree->key_len) <= 0)) {
-			lock(leaf->child);
-			unlock(leaf);
+			lock(leaf->child, READ);
+			unlock(leaf, READ);
 			leaf = (BNode *)leaf->child;
 		} else {
 			break;
 		}
 	}
+	upgrade(leaf);
+	// unlock(leaf, READ);
+	// lock(leaf, WRITE);
 	return leaf;
 }
 
 static BNode* _find_leaf(BTree *btree, const void *key, Pair *stack, uint8_t *depth)
 {
+	lock(btree->root, READ);
 	BNode *curr = btree->root;
 	uint8_t index;
 	for (; curr->tag != LEAF;) {
@@ -178,6 +182,8 @@ static BNode* _find_leaf(BTree *btree, const void *key, Pair *stack, uint8_t *de
 			index = _get_descend_index(curr, key, btree->key_len, btree->compare);
 			if (index == curr->kcount && curr->child[btree->max_node] &&
 				(btree->compare(PTR(curr->key, btree->n, btree->key_len), key, btree->key_len) <= 0)) {
+				lock(curr->child[btree->max_node], READ);
+				unlock(curr, READ);
 				curr = curr->child[btree->max_node];
 			} else {
 				break;
@@ -186,9 +192,10 @@ static BNode* _find_leaf(BTree *btree, const void *key, Pair *stack, uint8_t *de
 		stack[*depth].node = curr;
 		stack[*depth].index = index;
 		++*depth;
+		lock(curr->child[index], READ);
+		unlock(curr, READ);
 		curr = curr->child[index];
 	}
-	lock(curr);
 	if (curr->page->index != curr->index)
 		curr->page = get_page(&btree->pager, curr->index);
 	else
@@ -251,14 +258,14 @@ static status _merge_or_redis_leaf(BTree *btree, BNode *parent, const void *val,
 	if (index) {
 		left  = parent->child[index-1];
 		right = parent->child[index];
-		right->page->status = WRITE;
+		right->page->status = OCCUPY;
 		if (left->index != left->page->index) left->page = get_page(&btree->pager, left->index);
 		else ++left->page->age;
 		right->page->status = false;
 	} else {
 		left  = parent->child[0];
 		right = parent->child[1];
-		left->page->status = WRITE;
+		left->page->status = OCCUPY;
 		if (right->index != right->page->index) right->page = get_page(&btree->pager, right->index);
 		else ++right->page->age;
 		left->page->status = false;
@@ -429,7 +436,7 @@ status delete_data(void *tree, const void *key)
 	BNode *leaf = _find_leaf(btree, key, stack, &depth);
 	int16_t pos;
 	leaf = _move_right(btree, leaf, key, &pos, false);
-	unlock(leaf);
+	unlock(leaf, WRITE);
 	if (pos != -1) {
 		if (KEY(leaf) != btree->min_key || leaf == btree->root) {
 			delete_from_page(leaf->page, btree->n, pos, key, btree->data_len, btree->key_len);
@@ -457,18 +464,19 @@ static status _insert_fixup(BTree *btree, BNode *left, char *key, BNode *right,
 	if (btree->root != left) {
 		bnode = stack[--depth].node;
 		index = stack[depth].index;
+		lock(bnode, WRITE);
 	} else {
 		bnode = newBNode(btree, NODE);
 		if (!bnode) return Fatal;
+		lock(bnode, WRITE);
 		bnode->child[0] = left;
 		++bnode->ncount;
 		btree->root = bnode;
 		index = 0;
 	}
-	lock(bnode);
 	index = _get_descend_index(bnode, key, btree->key_len, btree->compare);
 	_insert_pair(bnode, index, right, key, btree->key_len);
-	unlock(left);
+	unlock(left, WRITE);
 
 	while (bnode->kcount == btree->n) {
 		left  = bnode;
@@ -476,14 +484,15 @@ static status _insert_fixup(BTree *btree, BNode *left, char *key, BNode *right,
 		if (bnode != btree->root) {
 			bnode = stack[--depth].node;
 			index = stack[depth].index;
+			lock(bnode, WRITE);
 		} else {
 			bnode = newBNode(btree, NODE);
+			lock(bnode, WRITE);
 			bnode->child[0] = left;
 			++bnode->ncount;
 			btree->root = bnode;
 			index = 0;
 		}
-		lock(bnode);
 		_part_half(right, left, btree->min_key + 1, btree->n, btree->key_len);
 		memcpy(key, PTR(left->key, btree->min_key, btree->key_len), btree->key_len);
 		memcpy(PTR(right->key, btree->n, btree->key_len),
@@ -491,11 +500,11 @@ static status _insert_fixup(BTree *btree, BNode *left, char *key, BNode *right,
 		memcpy(PTR(left->key, btree->n, btree->key_len), key, btree->key_len);
 		right->child[btree->max_node] = left->child[btree->max_node];
 		left->child[btree->max_node] = right;
-		unlock(left);
+		unlock(left, WRITE);
 		index = _get_descend_index(bnode, key, btree->key_len, btree->compare);
 		_insert_pair(bnode, index, right, key, btree->key_len);
 	}
-	unlock(bnode);
+	unlock(bnode, WRITE);
 	return Ok;
 }
 
@@ -503,7 +512,7 @@ static status _split_and_insert(BTree *btree, BNode *leaf, uint8_t pos, const vo
 	Pair *stack, uint8_t depth)
 {
 	char key[btree->key_len];
-	leaf->page->status = WRITE;
+	leaf->page->status = OCCUPY;
 	BNode *new = newBNode(btree, LEAF);
 	// printf("%d %d\n", leaf->index, new->index);
 	leaf->page->status = false;
@@ -542,12 +551,12 @@ status insert_data(void *tree, const void *val)
 	if (pos != 0xFF) {
 		if (KEY(leaf) != btree->max_key) {
 			insert_to_page(leaf->page, btree->max_key, pos, val, btree->data_len);
-			unlock(leaf);
+			unlock(leaf, WRITE);
 		} else {
 			_split_and_insert(btree, leaf, pos, val, stack, depth);
 		}
 	} else {
-		unlock(leaf);
+		unlock(leaf, WRITE);
 		alert("拥有该关键值的数据已存在 :(");
 		return Bad;
 	}

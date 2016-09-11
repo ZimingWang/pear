@@ -19,8 +19,7 @@
 #define  BUCKET_SIZE			 (MAX_PAGE / 16)
 #define  MAX_PAGE_PER_FILE	4096
 
-#define  READ   1
-#define  WRITE  2
+#define  OCCUPY   1
 
 typedef struct
 {

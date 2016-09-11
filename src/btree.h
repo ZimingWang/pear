@@ -10,6 +10,10 @@
 #ifndef _BTREE_H_
 #define _BTREE_H_
 
+#ifndef __USE_UNIX98
+#define __USE_UNIX98 1
+#endif
+
 #include <pthread.h>
 
 #include "error.h"
