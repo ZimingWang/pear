@@ -541,7 +541,7 @@ static status _split_and_insert(BTree *btree, BNode *leaf, uint8_t pos, const vo
 
 status insert_data(void *tree, const void *val)
 {
-	// puts(val);
+	puts(val);
 	BTree *btree = (BTree *)tree;
 	uint8_t depth = 0;
 	Pair stack[MAX_DEPTH];

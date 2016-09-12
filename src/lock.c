@@ -126,14 +126,14 @@ static status _lock(HashBucket *bucket, uint64_t id, lock_status mode)
 			}
 		}
 	}
-	pthread_mutex_unlock(&bucket->lock);
 	assert(lock);
-	if (mode == READ) {
-		pthread_rwlock_rdlock(&lock->lock);
-		++lock->shared;
-	} else {
+	pthread_mutex_unlock(&bucket->lock);
+	if (mode == WRITE) {
 		pthread_rwlock_wrlock(&lock->lock);
 		lock->shared = 1;
+	} else {
+		pthread_rwlock_rdlock(&lock->lock);
+		++lock->shared;
 	}
 	if (lock->id != id)
 		lock->id = id;
@@ -166,11 +166,11 @@ static status _unlock(HashBucket *bucket, uint64_t id, lock_status mode)
 		print_hash_lock_table_status();
 		exit(-1);
 	}
-	pthread_mutex_unlock(&bucket->lock);
 	if (mode == WRITE)
 		lock->shared = 0;
 	else
 		--lock->shared;
+	pthread_mutex_unlock(&bucket->lock);
 	pthread_rwlock_unlock(&lock->lock);
 	return Ok;
 }
@@ -201,6 +201,7 @@ static status _upgrade(HashBucket *bucket, uint64_t id)
 		exit(-1);
 	}
 	pthread_mutex_unlock(&bucket->lock);
+	--lock->shared;
 	pthread_rwlock_unlock(&lock->lock);
 	pthread_rwlock_wrlock(&lock->lock);
 	lock->shared = 1;
@@ -241,7 +242,7 @@ int main()
 	uint64_t **id = (uint64_t **)malloc(10 * sizeof(uint64_t *));
 	for (int i = 0; i != 10; ++i) {
 		id[i] = malloc(sizeof(uint64_t));
-		lock(id[i]);
+		lock(id[i], );
 	}
 	puts("lock");
 	lock(id[0]);
