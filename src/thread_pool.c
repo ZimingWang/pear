@@ -16,22 +16,6 @@ static JobQueue queue;
 
 static void* _run_job(void *);
 
-/*
-void* print_job_status(void *arg)
-{
-	while (1) {
-		sleep(1);
-		for (int i = 0; i < JOB_QUEUE_SIZE;) {
-			printf("%-2d %-2d     ", queue.avail[i], queue.work[i]);
-			if (!(++i % 4))
-				printf("\n");
-		}
-		printf("front %d  avail_back %d  work_back %d\n",
-			queue.front, queue.avail_back, queue.work_back);
-	}
-}
-*/
-
 status init_job_queue()
 {
 	queue.base  = (Job *)calloc(JOB_QUEUE_SIZE, sizeof(Job));

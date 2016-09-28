@@ -49,7 +49,7 @@ typedef struct
 
 status init_lock_hash_table();
 status free_lock_hash_table();
-void   print_hash_lock_table_status();
+void*   print_hash_lock_table_status(void *arg);
 status lock(const void *ptr, lock_status mode);
 status unlock(const void *ptr, lock_status mode);
 status upgrade(const void *ptr);

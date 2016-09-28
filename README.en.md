@@ -31,6 +31,5 @@
 ###TODO
 - [x] insert, select, delete operation
 - [x] thread pool
-- [ ] lock manager
-- [ ] memory pool
+- [x] lock manager
 - [ ] concurrent index

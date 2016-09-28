@@ -9,12 +9,11 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "lock.h"
 
 LockHashTable hashtable;
-
-// static int lock_count = 0;
 
 static inline uint8_t _hash(const uint64_t id)
 {
@@ -68,7 +67,6 @@ status _free_hash_bucket(HashBucket *bucket)
 
 status free_lock_hash_table()
 {
-	// print_hash_lock_table_status();
 	if (hashtable.entry) {
 		for (uint8_t i = 0; i != TABLE_SIZE; ++i)
 			if (_free_hash_bucket(&hashtable.entry[i]) != Ok)
@@ -99,7 +97,6 @@ static Lock* newLock(uint64_t id)
 static status _lock(HashBucket *bucket, uint64_t id, lock_status mode)
 {
 	pthread_mutex_lock(&bucket->lock);
-
 	Lock *lock = bucket->head;
 	while (lock) {
 		if (lock->id == id) break;
@@ -130,10 +127,10 @@ static status _lock(HashBucket *bucket, uint64_t id, lock_status mode)
 	pthread_mutex_unlock(&bucket->lock);
 	if (mode == WRITE) {
 		pthread_rwlock_wrlock(&lock->lock);
-		lock->shared = 1;
+		lock->shared = WRITE;
 	} else {
 		pthread_rwlock_rdlock(&lock->lock);
-		++lock->shared;
+		lock->shared = READ;
 	}
 	if (lock->id != id)
 		lock->id = id;
@@ -143,10 +140,6 @@ static status _lock(HashBucket *bucket, uint64_t id, lock_status mode)
 
 status lock(const void *ptr, lock_status mode)
 {
-	// pthread_mutex_lock(&hashtable.lock);
-	// ++lock_count;
-	// pthread_mutex_unlock(&hashtable.lock);
-	// printf("lock    id = %ld  index %d\n", id, bucket_index);
 	uint64_t id = (uint64_t)ptr;
 	uint8_t bucket_index = _hash(id);
 	return _lock(&hashtable.entry[bucket_index], id, mode);
@@ -157,30 +150,23 @@ static status _unlock(HashBucket *bucket, uint64_t id, lock_status mode)
 	pthread_mutex_lock(&bucket->lock);
 	Lock *lock = bucket->head;
 	while (lock) {
-		if (lock->id == id && lock->shared)
+		if (lock->id == id)
 			break;
 		lock = lock->next;
 	}
 	if (!lock) {
 		alert("解锁 %ld 模式: %s 失败 :(", id, mode == READ ? "read" : "write");
-		print_hash_lock_table_status();
+		print_hash_lock_table_status(NULL);
 		exit(-1);
 	}
-	if (mode == WRITE)
-		lock->shared = 0;
-	else
-		--lock->shared;
 	pthread_mutex_unlock(&bucket->lock);
+	lock->shared = 0;
 	pthread_rwlock_unlock(&lock->lock);
 	return Ok;
 }
 
 status unlock(const void *ptr, lock_status mode)
 {
-	// pthread_mutex_lock(&hashtable.lock);
-	// --lock_count;
-	// pthread_mutex_unlock(&hashtable.lock);
-	// printf("unlock  id = %ld  index %d\n", id, bucket_index);
 	uint64_t id = (uint64_t)ptr;
 	uint8_t bucket_index = _hash(id);
 	return _unlock(&hashtable.entry[bucket_index], id, mode);
@@ -191,20 +177,19 @@ static status _upgrade(HashBucket *bucket, uint64_t id)
 	pthread_mutex_lock(&bucket->lock);
 	Lock *lock = bucket->head;
 	while (lock) {
-		if (lock->id == id && lock->shared)
+		if (lock->id == id)
 			break;
 		lock = lock->next;
 	}
 	if (!lock) {
 		alert("升级锁 %ld 失败 :(", id);
-		print_hash_lock_table_status();
+		print_hash_lock_table_status(NULL);
 		exit(-1);
 	}
 	pthread_mutex_unlock(&bucket->lock);
-	--lock->shared;
 	pthread_rwlock_unlock(&lock->lock);
 	pthread_rwlock_wrlock(&lock->lock);
-	lock->shared = 1;
+	lock->shared = WRITE;
 	return Ok;
 }
 
@@ -225,7 +210,7 @@ static void _print_hash_bucket_status(const HashBucket *bucket)
 	}
 }
 
-void print_hash_lock_table_status()
+void* print_hash_lock_table_status(void *arg)
 {
 	for (uint8_t i = 0; i != TABLE_SIZE; ++i) {
 		if (hashtable.entry[i].len) {
@@ -233,28 +218,5 @@ void print_hash_lock_table_status()
 			_print_hash_bucket_status(&hashtable.entry[i]);
 		}
 	}
+	return NULL;
 }
-
-/*
-int main()
-{
-	init_lock_hash_table();
-	uint64_t **id = (uint64_t **)malloc(10 * sizeof(uint64_t *));
-	for (int i = 0; i != 10; ++i) {
-		id[i] = malloc(sizeof(uint64_t));
-		lock(id[i], );
-	}
-	puts("lock");
-	lock(id[0]);
-	puts("unlock");
-	unlock(id[0]);
-	print_hash_lock_table_status();
-	// for (int i = 0; i != 10; ++i) {
-	// 	unlock(id[i]);
-	// 	free(id[i]);
-	// }
-	free(id);
-	free_lock_hash_table();
-	return 0;
-}
-*/

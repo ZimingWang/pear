@@ -244,7 +244,7 @@ void split_page(Page *pdst, Page *psrc, const uint8_t beg, const uint8_t end,
 	psrc->dirty = true;
 }
 
-void delete_from_page(Page *page, const uint8_t end, const uint8_t pos, const void *key,
+bool delete_from_page(Page *page, const uint8_t end, const uint8_t pos, const void *key,
 	const uint16_t len, const uint8_t key_len)
 {
 	uint8_t *index = (uint8_t *)(page->data + 1);
@@ -254,11 +254,12 @@ void delete_from_page(Page *page, const uint8_t end, const uint8_t pos, const vo
 	void *data = page->data + end;
 
 	if (memcmp(data + (uint32_t)idx * len, key, key_len)) {
+		printf("%d\n", pos);
 		puts(data + (uint32_t)idx * len);
 		puts(key);
 		scan_page(page, end, len, key_len);
 		alert("error !!! :(");
-		exit(-1);
+		return false;
 	}
 
 	if (idx != num)
@@ -271,6 +272,7 @@ void delete_from_page(Page *page, const uint8_t end, const uint8_t pos, const vo
 			index[i] = idx;
 	}
 	page->dirty = true;
+	return true;
 }
 
 void merge_page(Page *left, Page *right, const uint8_t end, const uint16_t len)
