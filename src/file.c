@@ -8,14 +8,11 @@
 **/
 
 #include <stdio.h>
-<<<<<<< HEAD
 
 #ifndef __USE_XOPEN_EXTENDED
 #define __USE_XOPEN_EXTENDED 1
 #endif
 
-=======
->>>>>>> 00546f17e101948197e76e19a8b464a3db19d2cf
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -59,11 +56,7 @@ int new_file(uint32_t seq, const char *type)
 	char buf[16];
 	_make_file_name(buf, seq, type);
 	if (!access(buf, F_OK)) {
-<<<<<<< HEAD
 		if (!truncate(buf, 0)) {
-=======
-		if (!truncate64(buf, 0)) {
->>>>>>> 00546f17e101948197e76e19a8b464a3db19d2cf
 			alert("文件 %s 截断失败 :(", buf);
 			return -1;
 		}

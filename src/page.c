@@ -10,14 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-<<<<<<< HEAD
 
 #ifndef __USE_UNIX98
 #define __USE_UNIX98 1
 #endif
 
-=======
->>>>>>> 00546f17e101948197e76e19a8b464a3db19d2cf
 #include <unistd.h>
 
 #include "page.h"
@@ -27,11 +24,7 @@ static status _write_page(const Page *page, const uint16_t page_size)
 {
 	uint32_t index  = (uint32_t)page->index % MAX_PAGE_PER_FILE;
 	uint32_t offset = index * page_size;
-<<<<<<< HEAD
 	if (pwrite(page->fd, page->data, page_size, offset) != page_size)
-=======
-	if (pwrite64(page->fd, page->data, page_size, offset) != page_size)
->>>>>>> 00546f17e101948197e76e19a8b464a3db19d2cf
 		fatal("页面写入失败 fd %2d  index %4d  offset %d :(", page->fd, index, offset);
 	return Ok;
 }
@@ -40,11 +33,7 @@ static status _read_page(const Page *page, const uint16_t page_size)
 {
 	uint32_t index  = (uint32_t)page->index % MAX_PAGE_PER_FILE;
 	uint32_t offset = index * page_size;
-<<<<<<< HEAD
 	if (pread(page->fd, page->data, page_size, offset) < page_size)
-=======
-	if (pread64(page->fd, page->data, page_size, offset) < page_size)
->>>>>>> 00546f17e101948197e76e19a8b464a3db19d2cf
 		fatal("页面读取失败 fd %2d  index %4d  offset %d :(", page->fd, index, offset);
 	return Ok;
 }
