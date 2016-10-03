@@ -1,0 +1,17 @@
+open database  `name`
+
+shut database  `name`
+
+remove database  `name`
+
+new table [
+	`name`  `type`
+	`name`  `type`
+	...
+]
+
+put  key  val val ...
+
+get  key
+
+drop  key

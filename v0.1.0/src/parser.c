@@ -7,13 +7,6 @@
  *    > Created Time: 2016-08-20 19:56:47
 **/
 
-<<<<<<< HEAD
-#ifndef __USE_UNIX98
-#define __USE_UNIX98 1
-#endif
-
-=======
->>>>>>> 00546f17e101948197e76e19a8b464a3db19d2cf
 #include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -22,7 +15,6 @@
 
 #include "parser.h"
 #include "table.h"
-#include "thread_pool.h"
 
 enum OP { PUT, DROP, GET, OPEN, SHUT, REMOVE, NEW };
 
@@ -79,11 +71,7 @@ void free_parser()
 static status _next_buffer()
 {
 	parser.processed += parser.buffer.len;
-<<<<<<< HEAD
-	parser.buffer.len = pread(parser.fd, parser.buffer.mem, BUFFER_SIZE, parser.processed);
-=======
 	parser.buffer.len = pread64(parser.fd, parser.buffer.mem, BUFFER_SIZE, parser.processed);
->>>>>>> 00546f17e101948197e76e19a8b464a3db19d2cf
 	if (parser.buffer.len > 0) {
 		parser.buffer.ptr = parser.buffer.mem;
 		char *ptr = (char *)(parser.buffer.mem + parser.buffer.len - 1);
@@ -282,8 +270,7 @@ status parse(const char *file)
 	for (;;) {
 		if ((s = _parse_line()) != Ok) {
 			close(parser.fd);
-			clear_job_queue();
-			printf("%d\n", tuple_number(parser.db));
+			if (parser.db) printf("%d\n", parser.db->tuple);
 			return s;
 		}
 		switch(parser.token.op) {
