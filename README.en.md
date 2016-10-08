@@ -4,6 +4,8 @@
 ###This is an upgrade of [Up Database](http://www.github.com/UncP/Up_Database)
 ####If you are implementing a database yourself, or you are new to database learning, it is highly recommended that you open directory [v0.1.0](./v0.1.0)
 
+####pear is a light-weight NoSQL database based on B+ btree index, it consists of a simple parser, a btree engine and a hashed page pool
+
 ###Current Version 0.1.1
 
 ####Goals
