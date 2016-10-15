@@ -71,7 +71,7 @@ void free_parser()
 static status _next_buffer()
 {
 	parser.processed += parser.buffer.len;
-	parser.buffer.len = pread64(parser.fd, parser.buffer.mem, BUFFER_SIZE, parser.processed);
+	parser.buffer.len = pread(parser.fd, parser.buffer.mem, BUFFER_SIZE, parser.processed);
 	if (parser.buffer.len > 0) {
 		parser.buffer.ptr = parser.buffer.mem;
 		char *ptr = (char *)(parser.buffer.mem + parser.buffer.len - 1);
