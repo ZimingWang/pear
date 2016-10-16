@@ -425,22 +425,9 @@ static status _merge_or_redis_delete(BTree *btree, BNode *leaf, const void *val,
 	return Ok;
 }
 
-// static int number = 0;
-
 status delete_data(void *tree, const void *key)
 {
 	BTree *btree = (BTree *)tree;
-	// if (!number) {
-	// 	for (uint8_t i = 0; i != btree->root->kcount; ++i) {
-	// 		puts(btree->root->key + (uint32_t)btree->key_len * i);
-	// 	}
-	// 	BNode *leaf = btree->root->child[0];
-	// 	while (leaf) {
-	// 		scan_page(leaf->page, btree->n, btree->data_len, btree->key_len);
-	// 		leaf = (BNode *)leaf->child;
-	// 	}
-	// 	number = 1;
-	// }
 	uint8_t depth = 0;
 	Pair stack[MAX_DEPTH];
 
